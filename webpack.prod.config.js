@@ -35,7 +35,7 @@ glob.sync(path.join(packageJsPath, '**/*.js')).map((file) => {
 })
 
 module.exports = {
-	mode: 'production',
+	mode: 'development', // so that we can see the source code in the browser
 	entry,
 	output: {
 		path: path.join(__dirname, 'public/'),

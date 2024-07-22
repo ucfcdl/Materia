@@ -33,7 +33,13 @@ RUN apt-get update
 RUN pip install --upgrade pip
 
 # Install some dependencies necessary for supporting the SAML library
-RUN apt-get install -y --no-install-recommends libxmlsec1-dev pkg-config
+# 1. libffi-dev is required for ??
+# 2. libxml2-dev and libxmlsec1-dev are required for xmlsec, which is required for python3-saml
+# 3. libxml2-dev is required for lxml
+RUN apt-get install -y --no-install-recommends \
+    pkg-config \
+    libffi-dev \
+    libxml2-dev=2.9.4+dfsg1-6.1ubuntu1.9 libxmlsec1-dev=1.2.25-1build1
 
 # Install uwsgi now because it takes a little while
 RUN pip install uwsgi

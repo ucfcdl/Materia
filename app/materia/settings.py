@@ -16,6 +16,8 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# SAML CONFIG
+from materia_ucfauth.authentication.saml_config import SAML_CONFIG, SAML_ATTRIBUTE_MAPPING, LOGIN_URL, LOGIN_REDIRECT_URL, LOGOUT_URL
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -41,6 +43,7 @@ INSTALLED_APPS = [
     # apps
     "core",
     "webpack_loader",
+    "materia_ucfauth.apps.UCFAuthConfig",
 ]
 
 MIDDLEWARE = [
@@ -53,6 +56,11 @@ MIDDLEWARE = [
     # "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'materia_ucfauth.authentication.saml_backends.SAMLServiceProviderBackend'
 ]
 
 ROOT_URLCONF = "materia.urls"
@@ -109,6 +117,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# SECURITY
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_NAME = "materia_sessionid"
+CSRF_COOKIE_NAME = "materia_csrftoken"
+CSRF_COOKIE_HTTPONLY = False
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = "DENY"
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
@@ -137,6 +152,7 @@ WEBPACK_LOADER = {
         "CACHE": False,  # Allow for cache in prod since files won't be changing.
         "BUNDLE_DIR_NAME": "static/",
         "STATS_FILE": os.path.join(BASE_DIR, "webpack-stats.json"),
+        'POLL_INTERVAL': 0.1,
     }
 }
 
