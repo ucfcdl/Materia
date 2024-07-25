@@ -32,7 +32,6 @@ COPY ./public /var/www/html/public
 COPY ./babel.config.json /var/www/html/babel.config.json
 COPY ./webpack.prod.config.js /var/www/html/webpack.prod.config.js
 
-
 WORKDIR /var/www/html
 RUN yarn install
 
@@ -41,6 +40,9 @@ RUN chown -R www-data:www-data /var/www
 RUN apt-get update && apt-get install -y \
     python3-dev \
     default-libmysqlclient-dev
+
+# Install MateriaUCFAuth
+RUN pip install --user /var/www/html/packages/materia-ucfauth-0.1.tar.gz
 
 RUN pip install -r /var/www/html/requirements.txt
 

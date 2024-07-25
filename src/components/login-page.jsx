@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Header from './header'
 import Summary from './widget-summary'
 import './login-page.scss'
+import {csrfToken} from '../util/csrf-token'
 
 const LoginPage = () => {
 
@@ -29,7 +30,7 @@ const LoginPage = () => {
 
 			// If there is no redirect query in the url but there is a hash, it will redirect to my-widgets#hash
 			// Otherwise, it adds it onto the end of the redirect query
-			actionRedirect += (window.location.hash ? window.location.hash : '') 
+			actionRedirect += (window.location.hash ? window.location.hash : '')
 
 			setState({
 				loginUser: window.LOGIN_USER,
@@ -43,7 +44,7 @@ const LoginPage = () => {
 				widgetName: window.WIDGET_NAME != undefined ? window.WIDGET_NAME : null,
 				isPreview: window.IS_PREVIEW != undefined ? window.IS_PREVIEW : null,
 				loginLinks: links,
-				errContent: window.ERR_LOGIN != undefined ? <div className='error'><p>{`${window.ERR_LOGIN}`}</p></div> : '',
+				errContent: window.ERR_LOGIN != undefined && window.ERR_LOGIN != '' ? <div className='error'><p>{`${window.ERR_LOGIN}`}</p></div> : '',
 				noticeContent: window.NOTICE_LOGIN != undefined ? <div className='error'><p>{`${window.NOTICE_LOGIN}`}</p></div> : ''
 			})
 		})
@@ -63,13 +64,13 @@ const LoginPage = () => {
 
 	let detailContent = <></>
 	if (!state.context || state.context == 'login') {
-		detailContent = 
+		detailContent =
 		<div className="login_context detail">
 			<h2 className="context-header">Log In to Your Account</h2>
 			<span className="subtitle">{`Using your ${state.loginUser} and ${state.loginPw} to access your Widgets.`}</span>
 		</div>
 	} else if (state.context && state.context == 'widget') {
-		detailContent = 
+		detailContent =
 		<div className="login_context detail">
 			<h2 className="context-header">Log in to play this widget</h2>
 			<span className="subtitle">{`Using your ${state.loginUser} and ${state.loginPw} to access your Widgets.`}</span>
@@ -88,6 +89,7 @@ const LoginPage = () => {
 						{ state.errContent }
 						{ state.noticeContent }
 						<form method="post" action={`${state.actionLogin}?redirect=${state.actionRedirect}`} className='form-content'>
+							<input type="hidden" name="csrfmiddlewaretoken" value={csrfToken} />
 							<ul>
 								<li>
 									<input type="text" name="username" id="username" placeholder={state.loginUser} tabIndex="1" autoComplete="username" />
@@ -99,7 +101,7 @@ const LoginPage = () => {
 									<button type="submit" tabIndex="3" className="action_button">Login</button>
 								</li>
 							</ul>
-							{ state.bypass ?  
+							{ state.bypass ?
 								<ul className="help_links">
 									{ state.loginLinks }
 									<li><a href="/help">Help</a></li>

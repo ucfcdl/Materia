@@ -14,10 +14,21 @@
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		{{ css_render|safe }} {{ partials.google_analytics|default:''|safe }}
+		<script type="text/javascript">
+			var LOGIN_USER = "{{ LOGIN_USER | default:'' }}";
+			var LOGIN_PW = "{{ LOGIN_PW | default:'' }}";
+			var ACTION_LOGIN = "{{ ACTION_LOGIN | default:'' }}";
+			var ACTION_REDIRECT = "{{ ACTION_REDIRECT | default:'' }}";
+			var BYPASS = "{{ BYPASS | default:'' }}";
+			var LOGIN_LINKS = "{{ LOGIN_LINKS | default:'' }}";
+			var ERR_LOGIN = "{{ ERR_LOGIN | default:'' }}";
+			var CONTEXT = "{{ CONTEXT | default:'' }}";
+		</script>
 	</head>
 	<body class="{{ page_type|default:'' }}">
 		<div id="app"></div>
 		<div id="modal"></div>
+		<!-- {% csrf_token %} -->
 		{% render_bundle bundle_name %} {% render_bundle 'commons' %}
 	</body>
 </html>

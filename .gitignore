@@ -137,3 +137,4 @@ app/babel.config.json
 app/webpack-stats.json
 app/webpack.prod.config.js
 app/yarn.lock
+app/react/dist/*
