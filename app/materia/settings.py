@@ -16,9 +16,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SAML CONFIG
-from materia_ucfauth.authentication.saml_config import SAML_CONFIG, SAML_ATTRIBUTE_MAPPING, LOGIN_URL, LOGIN_REDIRECT_URL, LOGOUT_URL
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -124,6 +121,13 @@ CSRF_COOKIE_NAME = "materia_csrftoken"
 CSRF_COOKIE_HTTPONLY = False
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
+
+# SAML CONFIG
+LOGIN_URL = "/saml2/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_URL = "/saml2/logout/"
+SAML_ENABLED = os.environ.get("SAML_ENABLED", "False") == "True"
+SAML_FOLDER = os.path.join(BASE_DIR, "materia_ucfauth", "authentication", "saml")
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/

@@ -4,7 +4,6 @@ from django.views.generic import View
 from django.contrib.auth import logout, login, authenticate
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from django.utils.decorators import method_decorator
-from core.users.models import User
 import logging
 
 
@@ -75,6 +74,9 @@ def create_context(title, bundle_name, js_group_name, css_group_name):
     return context
 
 def user_get(request):
+    """
+    API Endpoint to get the current user.
+    """
     if request.user.is_authenticated:
         user = request.user
         return HttpResponse(user, content_type="application/json")
@@ -83,9 +85,8 @@ def user_get(request):
 
 class LoginView(View):
     """
-    Build a new AuthNRequest using the provided SAML configuration.
+    Build a non-SAML login page for users to authenticate.
     """
-    @method_decorator(ensure_csrf_cookie)
     def get(self, *args, **kwargs):  # pylint: disable=unused-argument
         if self.request.user.is_authenticated:
             return redirect("home page")
@@ -114,6 +115,8 @@ class LogoutView(View):
 
     def get(self, *args, **kwargs):  # pylint: disable=unused-argument
         logout(self.request)
+        return redirect("home page")
 
     def post(self, *args, **kwargs):
         logout(self.request)
+        return redirect("home page")

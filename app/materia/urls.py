@@ -20,32 +20,26 @@ from django.urls import include, path
 from core.views import main as core_views
 from django.conf import settings
 from materia_ucfauth.authentication.saml_views import SamlLoginView, SamlLogoutView
-from django.contrib.auth.views import LoginView, LogoutView
 
 urlpatterns = [
     path("", core_views.index, name="home page"),
     path("help/", core_views.help, name="help"),
-    path("login/", core_views.LoginView.as_view(), name="login"),
-    # path("logout/", core_views.LogoutView.as_view(), name="logout"),
-    path("logout/", LogoutView.as_view(), name="logout", kwargs={"next_page": "/"}),
     path("api/json/user_get", core_views.user_get, name="user_get"),
 ]
 
 # Register SAML login routes
-# if hasattr(settings, "SAML_CONFIG"):
-#     urlpatterns += [
-#         path("login/", SamlLoginView.as_view(), name="saml_login"),
-#         path("logout/", SamlLogoutView.as_view(), name="saml_logout"),
-#         path(r'saml2/', include('materia_ucfauth.authentication.saml_urls')),
-#     ]
-# else:
-#     # Register default login routes
-#     urlpatterns += [
-#         path(
-#             "login/", core_views.LoginView, name="login"
-#         ),
-#         path("logout/", LogoutView.as_view(), name="logout", kwargs={"next_page": "/"}),
-#     ]
+if getattr(settings, "SAML_ENABLED", False) == True:
+    urlpatterns += [
+        path("login/", SamlLoginView.as_view(), name="saml_login"),
+        path("logout/", SamlLogoutView.as_view(), name="saml_logout"),
+        path(r'saml2/', include('materia_ucfauth.authentication.saml_urls')),
+    ]
+else:
+    # Register default login routes
+    urlpatterns += [
+        path("login/", core_views.LoginView.as_view(), name="login"),
+        path("logout/", core_views.LogoutView.as_view(), name="logout"),
+    ]
 
 handler404 = "core.views.main.handler404"
 handler500 = "core.views.main.handler500"
