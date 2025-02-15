@@ -693,6 +693,19 @@ class Widget(models.Model):
     }
     """
 
+    def get_score_module_class(self):
+        """
+        :returns: the class of the corresponding score module
+        :rtype: class
+        """
+        from importlib import import_module
+
+        score_module = import_module(
+            f"public.widget.{self.id}-{self.clean_name}._score-modules.score_module"
+        )
+        widget_class = getattr(score_module, f"ScoreModule{self.name}")
+        return widget_class
+
     class Meta:
         db_table = "widget"
         indexes = [
