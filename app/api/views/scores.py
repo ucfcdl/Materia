@@ -5,7 +5,7 @@ from django.http import HttpResponseNotFound, HttpResponseForbidden, JsonRespons
 
 from core.models import DateRange, WidgetInstance
 from util.logging.session_play import SessionPlay
-from util.scoring.scoring_util import ScoringUtil
+from scoring_app.manager import ScoringUtil
 from util.widget.validator import ValidatorUtil
 
 

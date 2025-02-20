@@ -138,6 +138,18 @@ class SessionLogger:
             case _:
                 return Log.LogType.EMPTY
 
+    def get_preview_logs(play_session: SessionPlay):
+        """
+        Return any logs for a preview from session or memory store.
+        """
+        request = getattr(settings, "CURRENT_REQUEST", None)
+        if not request:
+            return []
+        session_key = f"previewPlayLogs.{play_session.data.id}"
+        logs = request.session.get(session_key, [])
+        # Convert each dict into a pseudo-Log object or just keep as dicts
+        # and standardize them to your code’s needs.
+        return logs
 
 # TODO maybe move this into a util class?
 def default_if_none(value, default):

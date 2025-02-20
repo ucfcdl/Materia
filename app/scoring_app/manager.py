@@ -9,20 +9,23 @@ from core.models import WidgetInstance, DateRange, LogPlay, UserExtraAttempts
 
 class ScoringUtil:
     @staticmethod
-    def get_instance_score_history(instance: WidgetInstance, context_id: str | None = None, semester: DateRange | None = None):
+    def get_instance_score_history(instance: WidgetInstance, context_id: str = None, semester: DateRange = None, user_id: int = None):
         # TODO select only id, created_at, percent - see php
         scores = LogPlay.objects.filter(
             is_complete=True,
             instance=instance,
             # TODO: user_id =
-        ).order_by("-created_at")
+        ).only("-created_at").only("id", "created_at", "percent").order_by("-created_at")
 
+        if user_id:
+            scores = scores.filter(user=user_id)
         if context_id:
             scores = scores.filter(context_id=context_id)
         if semester:
             scores = scores.filter(semester=semester)
 
-        return scores
+        return list(scores.values("id", "created_at", "percent"))
+
 
     @staticmethod
     def get_instance_extra_attempts(instance: WidgetInstance, context_id: str, semester: DateRange):
@@ -36,6 +39,7 @@ class ScoringUtil:
 
         return result.extra_attempts if result else 0
 
+
     @staticmethod
     def get_guest_instance_score_history(instance: WidgetInstance, play_id: str):
         # TODO: I don't see the point of filtering by the other options? I think the PK should be just fine
@@ -44,6 +48,7 @@ class ScoringUtil:
             instance=instance,
             is_complete=True,
         ).order_by("-created_at")
+
 
     # Get score and play details for a SessionPlay
     @staticmethod
@@ -79,6 +84,7 @@ class ScoringUtil:
         result["qset"] = instance.qset.as_json()
 
         return result  # TODO dunno if we need to do this as a list - the original function in php is never called with more than one play_id
+
 
     # Selects the number of scores in each bracket (where bracket 0 is 0% - 9%, bracket 1 is, 10% - 19%, etc.)
     # for each semester, ordered by semester for the given widget instance. Note that 100% is lumped into bracket 9.
@@ -117,6 +123,7 @@ class ScoringUtil:
 
         return semesters
 
+
     # Grabs the average score and number of plays for a widget instance per semester.
     @staticmethod
     def get_widget_score_summary(instance: WidgetInstance) -> dict[int, dict]:
@@ -137,3 +144,4 @@ class ScoringUtil:
             del summaries[d["term_id"]]["term_id"]
 
         return summaries
+

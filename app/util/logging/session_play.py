@@ -5,7 +5,7 @@ from typing import Self
 from django.utils.timezone import make_aware
 
 from core.models import WidgetInstance, LogPlay, DateRange
-from util.scoring.scoring_util import ScoringUtil
+from scoring_app.manager import ScoringUtil
 from util.widget.validator import ValidatorUtil
 
 
@@ -176,6 +176,17 @@ class SessionPlay:
                 pass
 
         return False
+
+
+    def get_logs(self):
+        """Fetch logs for this session, either from DB
+             or from session-based storage when preview."""
+        if self.is_preview:
+            from util.logging.session_logger import SessionLogger
+            return SessionLogger.get_preview_logs(self)
+        else:
+            from core.models import Log
+            return Log.objects.filter(play_id=self.data.id).order_by("game_time")
 
     # def create_log_play(self, id: str):
     # log_play = LogPlay(
