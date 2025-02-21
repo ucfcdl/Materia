@@ -93,6 +93,20 @@ class ScoringUtil:
         else:
             details["qset"] = {"version": None, "data": None}
 
+        import datetime
+
+        def json_serial(obj):
+            if isinstance(obj, datetime.datetime):
+                return obj.isoformat()  # Converts datetime to "YYYY-MM-DDTHH:MM:SS"
+            raise TypeError(f"Type {type(obj)} not serializable")
+
+        import json
+
+        print("\n=== DEBUG: API Response (get_play_details) ===\n")
+        print(json.dumps(details, indent=4, default=json_serial))
+        print("\n============================================\n")
+
+
         return details
     #
     # def get_play_details(session_play: "util.logging.session_play.SessionPlay"):  # Avoids circular dependency
