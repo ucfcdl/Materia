@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from core.models import LogPlay, WidgetInstance
-from utils.Semester import Semester
+from util.semester import Semester
 from util.logging.session_play import SessionPlay
 from util.logging.session_logger import SessionLogger
 from django.utils.timezone import now
@@ -13,27 +13,27 @@ class ScoreModule(ABC):
         self.instance = instance
         self.play = play
         self.verified_score = 0
-        self.calculated_percent = 0  # Full precision percent!! Not Rounded!
+        self.calculated_percent = 0  # full precision percent!! not rounded!
         self.total_questions = 0
         self.finished = False
         self.log_problems = False
         self.global_modifiers = []
         self.custom_methods = None
         self.questions = []
-        self.score_display = []
-        self._ss_table_title = "Responses:"
-        self._ss_table_headers = ["Question Score", "The Question", "Your Response", "Correct Answer"]
+        self.score_display = {}
+        self._ss_table_title = "responses:"
+        self._ss_table_headers = ["question score", "the question", "your response", "correct answer"]
 
 
     def validate(self) -> bool:
-        """Perform all validation"""
+        """perform all validation"""
         return self.validate_times() and self.validate_scores()
 
 
     def validate_times(self) -> bool:
-        """Validate that the logs we received make sense in time,
+        """validate that the logs we received make sense in time,
         both in our server time and in the player time.
-        Adds a validation fail log for every log that is found to be out of order (time-wise).
+        adds a validation fail log for every log that is found to be out of order (time-wise).
         """
         session = SessionPlay.get_or_none(str(self.play_id))
         if not session:
@@ -45,9 +45,9 @@ class ScoreModule(ABC):
             game_time = log.game_time if hasattr(log, "game_time") else log["game_time"]
             if game_time < last_time and game_time != -1:
                 if self.log_problems:
-                    # Record a time validation failure log
+                    # record a time validation failure log
                     SessionLogger.add_log(
-                        log_type=1509,  # ERROR_TIME_VALIDATION
+                        log_type=1509,  # error_time_validation
                         item_id=log.item_id if hasattr(log, "item_id") else log["item_id"],
                         text=str(log.id) if hasattr(log, "id") else "preview_log",
                         value=str(last_time),
@@ -62,9 +62,9 @@ class ScoreModule(ABC):
 
 
     def validate_scores(self, timestamp=False) -> bool:
-        """Calculates score for this session. Updates `verified_score` and
+        """calculates score for this session. updates `verified_score` and
         `calculated_percent`, which are eventually written to the database
-        by the API. Validates the individual question scores are valid.
+        by the api. validates the individual question scores are valid.
         """
         session = SessionPlay.get_or_none(str(self.play_id))
         if not session:
@@ -72,17 +72,17 @@ class ScoreModule(ABC):
 
         if not timestamp:
             if not self.play:
-                self.play = LogPlay.objects.get(id=self.play_id)
+                self.play = logplay.objects.get(id=self.play_id)
 
             # except for previews, check that attempts are not exceeded.
             if self.play_id != -1:
                 semester = Semester.get_current_semester()
-                attempts_used = LogPlay.objects.filter(
+                attempts_used = logplay.objects.filter(
                     instance=self.instance, context_id=self.play.context_id, semester=semester
                 ).count()
 
                 if self.instance.attempts != -1 and attempts_used >= self.instance.attempts:
-                    raise Exception("Attempt Limit Met: You have already met the attempt limit for this widget.")
+                    raise exception("attempt limit met: you have already met the attempt limit for this widget.")
 
         self.load_questions(timestamp)
 
@@ -96,23 +96,23 @@ class ScoreModule(ABC):
 
 
     def process_score_logs(self)->None:
-        """Processes logs to determine score"""
+        """processes logs to determine score"""
         for log in self.logs:
             log_type = log.log_type if hasattr(log, "log_type") else log["type"]
-            if log_type == "WIDGET_END":
+            if log_type == "widget_end":
                 self.finished = True
-            elif log_type == "FINAL_SCORE_FROM_CLIENT":
+            elif log_type == "final_score_from_client":
                 self.handle_log_client_final_score(log)
-            elif log_type == "QUESTION_ANSWERED":
+            elif log_type == "question_answered":
                 self.handle_log_question_answered(log)
-            elif log_type == "WIDGET_INTERACTION":
+            elif log_type == "widget_interaction":
                 self.handle_log_widget_interaction(log)
-            elif log.type == "SCORE_PARTICIPATION":
+            elif log.log_type == "score_participation":
                 self.verified_score = log.value if hasattr(log, "value") else log["value"]
 
 
     def handle_log_client_final_score(self, log)->None:
-        """Handles the log when a final score is received from the client"""
+        """handles the log when a final score is received from the client"""
         self.verified_score = 0
         self.total_questions = 0
         val = log.value if hasattr(log, "value") else log["value"]
@@ -120,19 +120,19 @@ class ScoreModule(ABC):
 
 
     def handle_log_question_answered(self, log)->None:
-        """Handles scoring when a question is answered"""
+        """handles scoring when a question is answered"""
         self.total_questions += 1
         self.verified_score += self.check_answer(log)
 
 
     @abstractmethod
     def check_answer(self, log):
-        """Abstract method to check answers. Implement this in child classes."""
+        """abstract method to check answers. implement this in child classes."""
         pass
 
 
     def calculate_score(self):
-        """Calculate final score percentage"""
+        """calculate final score percentage"""
         global_mod = sum(self.global_modifiers)
         if self.total_questions > 0:
             points = self.verified_score + global_mod * self.total_questions
@@ -146,13 +146,13 @@ class ScoreModule(ABC):
 
 
     def get_score_report(self)-> object:
-        """Returns a report of the calculated score"""
+        """returns a report of the calculated score"""
         self.score_display["overview"] = self.get_score_overview()
         self.score_display["details"] = self.get_score_details()
         return self.score_display
 
 
-    def get_score_overview():
+    def get_score_overview(self):
         complete = False
         if self.play_id == "-1":
             complete = True
@@ -169,27 +169,27 @@ class ScoreModule(ABC):
         }
 
 
-    def get_overview_items():
+    def get_overview_items(self):
         overview_items = []
-        overview_items.append({"message": "Points Lost", "value": self.calculated_percent-100})
-        overview_items.append({"message": "Final Score", "value": self.calculated_percent})
+        overview_items.append({"message": "points lost", "value": self.calculated_percent-100})
+        overview_items.append({"message": "final score", "value": self.calculated_percent})
         return overview_items
 
 
     def load_questions(self, timestamp=False)->None:
-        """Loads questions associated with the widget instance"""
+        """loads questions associated with the widget instance"""
         if not self.instance.qset.data:
             self.instance.get_qset(self.instance.id, timestamp)
 
         if self.instance.qset.data:
-            self.questions = self.instance.qset.find_questions(self.instance.qset.data)
+            self.questions = self.instance.qset.find_questions()
 
 
-    def get_score_details():
+    def get_score_details(self):
         details = []
-        for logs in self.logs:
+        for log in self.logs:
             log_type = log.log_type if hasattr(log, "log_type") else log["type"]
-            if log_type == "QUESTION_ANSWERED":
+            if log_type == "question_answered":
                 item_id = log.item_id if hasattr(log, "item_id") else log["item_id"]
                 if item_id in self.questions:
                     #self.details_for_question_answered(log)?
@@ -202,7 +202,7 @@ class ScoreModule(ABC):
 
 
     def details_for_question_answered(self, log)-> dict:
-        """BUilds an item in the table array like in php"""
+        """builds an item in the table array like in php"""
         item_id = log.item_id if hasattr(log, "item_id") else log["item_id"]
         question = self.questions[item_id]
         score = self.check_answer(log)
@@ -226,7 +226,7 @@ class ScoreModule(ABC):
 
 
     def get_feedback(self, log, answers:list)-> str | None:
-        """"If log text matches an answer return it"""
+        """"if log text matches an answer return it"""
         text = log.text if hasattr(log, "text") else log["text"]
         for answer in answers:
             if text == answer["text"]:
@@ -252,7 +252,7 @@ class ScoreModule(ABC):
 
 
     def get_ss_expected_answers(self, log, question) -> str:
-        if question["type"] == "MC":
+        if question["type"] == "mc":
             max_value = 0
             max_answers = []
             for ans in question["answers"]:

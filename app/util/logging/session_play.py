@@ -131,7 +131,7 @@ class SessionPlay:
             score_history = ScoringUtil.get_instance_score_history(self.data.instance, self.data.context_id)  # TODO: this is a 'private' field - maybe figure out a better solution
 
             for score_history_item in score_history:
-                max_percent = max(max_percent, score_history_item.percent)
+                max_percent = max(max_percent, score_history_item["percent"])
 
         # Notify plugins that the score has been saved
         # TODO Event::trigger('score_updated', ... see php

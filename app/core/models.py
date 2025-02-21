@@ -760,6 +760,15 @@ class WidgetInstance(models.Model):
         except WidgetQset.DoesNotExist:
             return WidgetQset({"version": None, "data": None})
 
+
+    def get_qset(self,instance_id,timestamp=None):
+        try:
+            if timestamp:
+                return self.qsets.filter(created_at__lte=timestamp).latest("id")
+            return self.qsets.latest("id")
+        except WidgetQset.DoesNotExist:
+            return WidgetQset({"version": None, "data": None})
+
     def playable_by_current_user(self):
         return self.guest_access  # TODO: || ServiceUser::verify_session();
 
@@ -912,7 +921,17 @@ class WidgetQset(SerializableModel):
 
     # TODO: implement this, old code below
     def find_questions(self):
-        pass
+        if not self.data:
+            return []
+        try:
+            decoded_data = base64.b64decode(self.data).decode("utf-8")
+            parsed_data = json.loads(decoded_data)
+            #extract questions assuming its a key in parsed_data
+            if "questions" in parsed_data:
+                return parsed_data["questions"]
+            return []
+        except Exception as e:
+            print(f"Error decoding questions: {e}")
 
     # TODO: find the assets!!!
     # Widget_Asset_Manager::register_assets_to_item(Widget_Asset::MAP_TYPE_QSET, $qset_id, $recursiveQGroup->assets);

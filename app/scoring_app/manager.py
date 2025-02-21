@@ -1,13 +1,20 @@
 import json
 import math
-
+import importlib
 from django.db.models import Case, When, F, Count, Avg
 from django.db.models.functions import Round
-
 from core.models import WidgetInstance, DateRange, LogPlay, UserExtraAttempts
 
 
 class ScoringUtil:
+    @staticmethod
+    def dynamic_import(full_path):
+        #find where ever the widget path is
+        module_name, class_name = full_path.rsplit('.', 1)
+        mod = importlib.import_module(module_name)
+        return getattr(mod, class_name)
+
+
     @staticmethod
     def get_instance_score_history(instance: WidgetInstance, context_id: str = None, semester: DateRange = None, user_id: int = None):
         # TODO select only id, created_at, percent - see php
@@ -50,40 +57,76 @@ class ScoringUtil:
         ).order_by("-created_at")
 
 
+
     # Get score and play details for a SessionPlay
     @staticmethod
-    def get_play_details(session_play: "util.logging.session_play.SessionPlay"):  # Avoids circular dependency
-        # TODO get user, see php
+    def get_play_details(session_play):
+        """
+        Hard‐code the Python module for scoring
+        """
+
+        from util.logging.session_play import SessionPlay
+        from .pythond import Pythond
         instance = session_play.data.instance
+        play = session_play.data
 
-        # TODO
-        # if session_play.data.user != cur_user and not instance.guest_access:
-        #     if ( ! Perm_Manager::user_has_any_perm_to($curr_user_id, $play->inst_id, Perm::INSTANCE, [Perm::VISIBLE, Perm::FULL]))
-        # 					return new \Materia\Msg('permissionDenied','Permission Denied','You do not own the score data you are attempting to access.');
+        # Just always use Pythond, ignoring widget.score_module
+        score_module = Pythond(
+            play_id=play.id,
+            instance=instance,
+            play=play
+        )
 
-        # TODO
-        # $class = $inst->widget->get_score_module_class();
-        #
-        # $score_module = new $class($play->id, $inst, $play);
-        #
-        # $score_module->logs = Session_Logger::get_logs($play->id);
-        # $score_module->validate_scores($play->created_at);
+        # Load logs
+        score_module.logs = session_play.get_logs()
+        # Run validation
+        score_module.validate_scores(play.created_at)
 
-        # // format results for the scorescreen
-        # $details = $score_module->get_score_report();
-        result = {
-            # TODO: temporary score stuffs for Crossword while the stuff above is out of service
-            "overview": json.loads(
-                '{"complete":"1","score":18.181818181818183,"table":[{"message":"Points Lost","value":-81.81818181818181},{"message":"Final Score","value":18.181818181818183}],"referrer_url":"","created_at":1737138496,"auth":""}'),
-            "details": json.loads(
-                '[{"title":"Responses:","header":["Question Score","The Question","Your Response","Correct Answer"],"table":[{"data":["The tallest mountain in the world, and the ultimate challenge for mountain climbers everywhere.","everest","Everest"],"data_style":["question","response","answer"],"score":100,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"full-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["A white marble mausoleum commissioned in 1632 by an emperor to house the tomb of his favorite wife of three.","___ ___-_____","The Taj-Mahal"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["Home for the president of the United States of America.","___ _____ _____","The White House"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["Mysterious landmark of several large standing stones arranged in a circle.","__________","Stonehenge"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["This is one of the world\u0027s oldest statues - A lion with a human head that stands in the Giza Plateau.","______","Sphinx"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["A monument built for the 1889 World\u0027s Fair, this metal structure can be found on the Champ de Mars in Paris.","____e_ _____","Eiffel Tower"],"data_style":["question","response","answer"],"score":9.090909090909092,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"partial-value","tag":"div","symbol":"%","graphic":"score","display_score":true}]}]')
-        }
+        # Build scoreboard
+        details = score_module.get_score_report()
 
-        # Append qset to details
-        # Required for custom score screens & contextually provided per play, since some plays may use an earlier qset verison
-        result["qset"] = instance.qset.as_json()
+        # Optionally attach Qset
+        instance.get_qset(instance.id, play.created_at)
+        # details["qset"] = instance.qset
+        if hasattr(instance.qset, "as_json"):
+            details["qset"] = instance.qset.as_json()
+        else:
+            details["qset"] = {"version": None, "data": None}
 
-        return result  # TODO dunno if we need to do this as a list - the original function in php is never called with more than one play_id
+        return details
+    #
+    # def get_play_details(session_play: "util.logging.session_play.SessionPlay"):  # Avoids circular dependency
+    #     # TODO get user, see php
+    #     instance = session_play.data.instance
+    #
+    #     # TODO
+    #     # if session_play.data.user != cur_user and not instance.guest_access:
+    #     #     if ( ! Perm_Manager::user_has_any_perm_to($curr_user_id, $play->inst_id, Perm::INSTANCE, [Perm::VISIBLE, Perm::FULL]))
+    #     # 					return new \Materia\Msg('permissionDenied','Permission Denied','You do not own the score data you are attempting to access.');
+    #
+    #     # TODO
+    #     # $class = $inst->widget->get_score_module_class();
+    #     #
+    #     # $score_module = new $class($play->id, $inst, $play);
+    #     #
+    #     # $score_module->logs = Session_Logger::get_logs($play->id);
+    #     # $score_module->validate_scores($play->created_at);
+    #
+    #     # // format results for the scorescreen
+    #     # $details = $score_module->get_score_report();
+    #     result = {
+    #         # TODO: temporary score stuffs for Crossword while the stuff above is out of service
+    #         "overview": json.loads(
+    #             '{"complete":"1","score":18.181818181818183,"table":[{"message":"Points Lost","value":-81.81818181818181},{"message":"Final Score","value":18.181818181818183}],"referrer_url":"","created_at":1737138496,"auth":""}'),
+    #         "details": json.loads(
+    #             '[{"title":"Responses:","header":["Question Score","The Question","Your Response","Correct Answer"],"table":[{"data":["The tallest mountain in the world, and the ultimate challenge for mountain climbers everywhere.","everest","Everest"],"data_style":["question","response","answer"],"score":100,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"full-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["A white marble mausoleum commissioned in 1632 by an emperor to house the tomb of his favorite wife of three.","___ ___-_____","The Taj-Mahal"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["Home for the president of the United States of America.","___ _____ _____","The White House"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["Mysterious landmark of several large standing stones arranged in a circle.","__________","Stonehenge"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["This is one of the world\u0027s oldest statues - A lion with a human head that stands in the Giza Plateau.","______","Sphinx"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["A monument built for the 1889 World\u0027s Fair, this metal structure can be found on the Champ de Mars in Paris.","____e_ _____","Eiffel Tower"],"data_style":["question","response","answer"],"score":9.090909090909092,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"partial-value","tag":"div","symbol":"%","graphic":"score","display_score":true}]}]')
+    #     }
+    #
+    #     # Append qset to details
+    #     # Required for custom score screens & contextually provided per play, since some plays may use an earlier qset verison
+    #     result["qset"] = instance.qset.as_json()
+    #
+    #     return result  # TODO dunno if we need to do this as a list - the original function in php is never called with more than one play_id
 
 
     # Selects the number of scores in each bracket (where bracket 0 is 0% - 9%, bracket 1 is, 10% - 19%, etc.)

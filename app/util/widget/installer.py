@@ -575,3 +575,10 @@ class WidgetInstaller:
             shutil.rmtree(target_dir)
         shutil.copytree(source_path, target_dir)
         logger.info(f"Widget files deployed: {widget_dir}")
+
+
+    def install_from_url_no_validate(self, package_url, desired_id):
+        local_package = self.download_package(package_url)
+
+        self.replace_id = desired_id
+        self.install(local_package)

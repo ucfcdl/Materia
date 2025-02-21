@@ -142,3 +142,14 @@ class Command(base.BaseCommand):
         for file in widget_files:
             skip_upgrade = False  # get this from the CLI options somehow?
             WidgetInstaller.extract_package_and_install(file, skip_upgrade, replace_id)
+
+
+
+
+
+
+    def install_from_url_no_validate(self, package_url, desired_id):
+        local_package = self.download_package(package_url)
+
+        self.replace_id = desired_id
+        self.install(local_package)
