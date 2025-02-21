@@ -15,7 +15,9 @@ class Pythond(ScoreModule):
 
 		for testcase in testcases:
 			try:
+				print(f"\n=== Running Test Case ===\nInput: {testcase['input']}")
 				output = self.run_code(user_code, testcase["input"], timeout=2)
+				print(f"Output: {output.strip()} | Expected: {testcase['output'].strip()}")
 				if output.strip() == testcase["output"].strip():
 					tests_passed += 1
 			except Exception as e:
@@ -40,6 +42,7 @@ class Pythond(ScoreModule):
 
 		try:
 			#runs a subprocess to run tmp file
+			print(f"\n=== Running Code ===\n{code}\n")
 			result = subprocess.run(
 				["python3", tmp_name],
 				input=input_data.encode("utf-8"),
@@ -51,14 +54,19 @@ class Pythond(ScoreModule):
 
 			#if code had a runtime error
 			if result.returncode != 0:
-				raise Exception("Runtime error: " + result.stderr)
+			    print(f"Runtime Error: {result.stderr}")
+			    raise Exception("Runtime error: " + result.stderr)
+
+			print(f"Program Output:\n{result.stdout}")
 			return result.stdout
 
 		except subprocess.TimeoutExpired:
 			# Timed out => raise exception
 			os.remove(tmp_name)
+			print("Error: Time Limit Exceeded")
 			raise Exception("Time Limit Exceeded")
 
 		except Exception as e:
 			os.remove(tmp_name)
+			print(f"Unexpected Error: {e}")
 			raise e
