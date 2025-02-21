@@ -920,18 +920,64 @@ class WidgetQset(SerializableModel):
         return json_qset
 
     # TODO: implement this, old code below
+
+
+
     def find_questions(self):
+        import json
+        import base64
+        """Extracts questions from qset data, ensuring proper Base64 decoding."""
         if not self.data:
+            print("❌ No data in qset!")
             return []
+
+        # 🔍 Debug: Print raw Base64 data
+        print(f"🔍 Raw Base64 self.data: {repr(self.data)}")
+
+        # Decode Base64 if data is bytes
         try:
-            decoded_data = base64.b64decode(self.data).decode("utf-8")
-            parsed_data = json.loads(decoded_data)
-            #extract questions assuming its a key in parsed_data
-            if "questions" in parsed_data:
-                return parsed_data["questions"]
-            return []
+            if isinstance(self.data, bytes):
+                print("🔍 self.data is bytes, decoding Base64...")
+                decoded_data = base64.b64decode(self.data).decode("utf-8")
+            elif isinstance(self.data, str):
+                print("🔍 self.data is string, assuming it's already decoded...")
+                decoded_data = self.data  # Assume it's already a string
+            else:
+                print("❌ Unexpected data format in qset!")
+                return []
         except Exception as e:
-            print(f"Error decoding questions: {e}")
+            print(f"❌ Base64 Decoding Error in find_questions: {e}")
+            return []
+
+        # 🔍 Debug: Print decoded JSON string
+        print(f"🔍 Decoded JSON String: {repr(decoded_data)}")
+
+        # Parse JSON
+        try:
+            parsed_data = json.loads(decoded_data)
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON Decoding Error in find_questions: {e}")
+            return []
+
+        # Check for "items" key
+        if "items" not in parsed_data:
+            print("❌ 'items' key missing in qset data!")
+            return []
+
+        questions = []
+        print(f"✅ Found {len(parsed_data['items'])} items in qset data.")
+
+        for item in parsed_data["items"]:
+            if "id" in item and "questions" in item:
+                question_entry = {
+                    "id": item["id"],
+                    "questions": item["questions"],
+                    "answers": item.get("answers", []),  # Default to empty if missing
+                }
+                questions.append(question_entry)
+
+        print(f"🔢 Extracted {len(questions)} questions from qset.")
+        return questions
 
     # TODO: find the assets!!!
     # Widget_Asset_Manager::register_assets_to_item(Widget_Asset::MAP_TYPE_QSET, $qset_id, $recursiveQGroup->assets);

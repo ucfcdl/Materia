@@ -76,7 +76,7 @@ class ScoringUtil:
             instance=instance,
             play=play
         )
-
+        print(f"\n✅✅✅ Instantiated: {score_module.__class__.__name__} ✅✅✅\n")  # THIS SHOULD PRINT Pythond
         # Load logs
         score_module.logs = session_play.get_logs()
         # Run validation

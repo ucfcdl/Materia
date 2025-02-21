@@ -95,19 +95,28 @@ class ScoreModule(ABC):
         return True
 
 
-    def process_score_logs(self)->None:
-        """processes logs to determine score"""
+    def process_score_logs(self):
+        """Processes logs to determine score"""
+        print(f"\n=== Processing Logs: Found {len(self.logs)} logs in {self.__class__.__name__} ===\n")
+
+        if len(self.logs) == 0:
+            print("⚠️ No logs found! No questions were answered.")
+            return
+
         for log in self.logs:
             log_type = log.log_type if hasattr(log, "log_type") else log["type"]
+            print(f"📝 Processing log of type: {log_type}")
+
             if log_type == "widget_end":
                 self.finished = True
             elif log_type == "final_score_from_client":
                 self.handle_log_client_final_score(log)
-            elif log_type == "question_answered":
-                self.handle_log_question_answered(log)
+            elif log_type in ["question_answered", "SCORE_QUESTION_ANSWERED"]:
+                print("✅ Log is question_answered. Calling handle_log_question_answered()...")
+                self.handle_log_question_answered(log)  # THIS should lead to check_answer()
             elif log_type == "widget_interaction":
                 self.handle_log_widget_interaction(log)
-            elif log.log_type == "score_participation":
+            elif log_type == "score_participation":
                 self.verified_score = log.value if hasattr(log, "value") else log["value"]
 
 
@@ -119,10 +128,17 @@ class ScoreModule(ABC):
         self.global_modifiers.append(int(val) - 100)
 
 
-    def handle_log_question_answered(self, log)->None:
-        """handles scoring when a question is answered"""
+    def handle_log_question_answered(self, log):
+        print(f"\n🔥🔥🔥 handle_log_question_answered() CALLED in {self.__class__.__name__} 🔥🔥🔥")
+        print(f"🔍 Log Data: {log}")
+
         self.total_questions += 1
-        self.verified_score += self.check_answer(log)
+        print(f"🧐 Calling check_answer() from {self.__class__.__name__}")
+
+        score = self.check_answer(log)  # THIS should call Pythond.check_answer()
+        print(f"✅ check_answer() returned score: {score}")
+
+        self.verified_score += score
 
 
     @abstractmethod
@@ -176,13 +192,25 @@ class ScoreModule(ABC):
         return overview_items
 
 
-    def load_questions(self, timestamp=False)->None:
-        """loads questions associated with the widget instance"""
+    def load_questions(self, timestamp=False) -> None:
+        """Loads questions associated with the widget instance"""
         if not self.instance.qset.data:
+            print("⚠️ No qset data found, fetching it now...")
             self.instance.get_qset(self.instance.id, timestamp)
 
         if self.instance.qset.data:
-            self.questions = self.instance.qset.find_questions()
+            print("\n🔍 Checking self.instance.qset.find_questions()...")
+            questions_list = self.instance.qset.find_questions()
+            print(f"🔢 Found {len(questions_list)} questions!")
+
+            # Convert self.questions into a dictionary
+            self.questions = {q["id"]: q for q in questions_list}
+
+            # Debug output
+            print("\n📋 Available Questions in self.questions:")
+            for qid in self.questions.keys():
+                print(f" - {qid}")
+            print("\n")
 
 
     def get_score_details(self):
