@@ -1,6 +1,7 @@
 import json
 import math
 import importlib
+from pathlib import Path
 from django.db.models import Case, When, F, Count, Avg
 from django.db.models.functions import Round
 from core.models import WidgetInstance, DateRange, LogPlay, UserExtraAttempts
@@ -17,11 +18,9 @@ class ScoringUtil:
 
     @staticmethod
     def get_instance_score_history(instance: WidgetInstance, context_id: str = None, semester: DateRange = None, user_id: int = None):
-        # TODO select only id, created_at, percent - see php
         scores = LogPlay.objects.filter(
             is_complete=True,
             instance=instance,
-            # TODO: user_id =
         ).only("-created_at").only("id", "created_at", "percent").order_by("-created_at")
 
         if user_id:
@@ -66,24 +65,45 @@ class ScoringUtil:
         """
 
         from util.logging.session_play import SessionPlay
-        from .pythond import Pythond
+        import os
         instance = session_play.data.instance
         play = session_play.data
+        widget_folder = f"staticfiles/widget/{instance.widget.id}-{instance.widget.clean_name}/_score-modules"
 
-        # Just always use Pythond, ignoring widget.score_module
-        score_module = Pythond(
+        # print("========================DEBUG=========================")
+        # print(f"Widget folder: {widget_folder}")
+        # print(f"clean_name: {instance.widget.clean_name}")
+        # print("========================DEBUG=========================")
+        script_path = os.path.join(widget_folder, "score_module.py")
+        # print("DEBUG: Attempting to load:", script_path)
+
+        # read the file’s text
+        code = Path(script_path).read_text()
+
+        import types
+        mod = types.ModuleType("temp_score_module")
+        exec(code, mod.__dict__)
+
+        # Now pick the class name from widget.score_module
+        ScoreClass = getattr(mod, instance.widget.score_module, None)
+        if not ScoreClass:
+            raise Exception("No score module found")
+
+        score_module = ScoreClass(
             play_id=play.id,
             instance=instance,
             play=play
         )
-        print(f"\n✅✅✅ Instantiated: {score_module.__class__.__name__} ✅✅✅\n")  # THIS SHOULD PRINT Pythond
         # Load logs
         score_module.logs = session_play.get_logs()
         # Run validation
         score_module.validate_scores(play.created_at)
 
         # Build scoreboard
+        print("========================DEBUG=========================")
         details = score_module.get_score_report()
+        print("========================DEBUG=========================")
+        print(details)
 
         # Optionally attach Qset
         instance.get_qset(instance.id, play.created_at)
@@ -107,40 +127,12 @@ class ScoringUtil:
         print("\n============================================\n")
 
 
+        print("again========================DEBUG=========================")
+        print(details)
+        print("========================DEBUG=========================")
+
+
         return details
-    #
-    # def get_play_details(session_play: "util.logging.session_play.SessionPlay"):  # Avoids circular dependency
-    #     # TODO get user, see php
-    #     instance = session_play.data.instance
-    #
-    #     # TODO
-    #     # if session_play.data.user != cur_user and not instance.guest_access:
-    #     #     if ( ! Perm_Manager::user_has_any_perm_to($curr_user_id, $play->inst_id, Perm::INSTANCE, [Perm::VISIBLE, Perm::FULL]))
-    #     # 					return new \Materia\Msg('permissionDenied','Permission Denied','You do not own the score data you are attempting to access.');
-    #
-    #     # TODO
-    #     # $class = $inst->widget->get_score_module_class();
-    #     #
-    #     # $score_module = new $class($play->id, $inst, $play);
-    #     #
-    #     # $score_module->logs = Session_Logger::get_logs($play->id);
-    #     # $score_module->validate_scores($play->created_at);
-    #
-    #     # // format results for the scorescreen
-    #     # $details = $score_module->get_score_report();
-    #     result = {
-    #         # TODO: temporary score stuffs for Crossword while the stuff above is out of service
-    #         "overview": json.loads(
-    #             '{"complete":"1","score":18.181818181818183,"table":[{"message":"Points Lost","value":-81.81818181818181},{"message":"Final Score","value":18.181818181818183}],"referrer_url":"","created_at":1737138496,"auth":""}'),
-    #         "details": json.loads(
-    #             '[{"title":"Responses:","header":["Question Score","The Question","Your Response","Correct Answer"],"table":[{"data":["The tallest mountain in the world, and the ultimate challenge for mountain climbers everywhere.","everest","Everest"],"data_style":["question","response","answer"],"score":100,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"full-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["A white marble mausoleum commissioned in 1632 by an emperor to house the tomb of his favorite wife of three.","___ ___-_____","The Taj-Mahal"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["Home for the president of the United States of America.","___ _____ _____","The White House"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["Mysterious landmark of several large standing stones arranged in a circle.","__________","Stonehenge"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["This is one of the world\u0027s oldest statues - A lion with a human head that stands in the Giza Plateau.","______","Sphinx"],"data_style":["question","response","answer"],"score":0,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"no-value","tag":"div","symbol":"%","graphic":"score","display_score":true},{"data":["A monument built for the 1889 World\u0027s Fair, this metal structure can be found on the Champ de Mars in Paris.","____e_ _____","Eiffel Tower"],"data_style":["question","response","answer"],"score":9.090909090909092,"feedback":null,"type":"SCORE_QUESTION_ANSWERED","style":"partial-value","tag":"div","symbol":"%","graphic":"score","display_score":true}]}]')
-    #     }
-    #
-    #     # Append qset to details
-    #     # Required for custom score screens & contextually provided per play, since some plays may use an earlier qset verison
-    #     result["qset"] = instance.qset.as_json()
-    #
-    #     return result  # TODO dunno if we need to do this as a list - the original function in php is never called with more than one play_id
 
 
     # Selects the number of scores in each bracket (where bracket 0 is 0% - 9%, bracket 1 is, 10% - 19%, etc.)
@@ -181,16 +173,16 @@ class ScoringUtil:
         return semesters
 
 
-    # Grabs the average score and number of plays for a widget instance per semester.
+    # grabs the average score and number of plays for a widget instance per semester.
     @staticmethod
     def get_widget_score_summary(instance: WidgetInstance) -> dict[int, dict]:
         results = (LogPlay.objects
            .filter(instance=instance, is_complete=True)
            .annotate(term_id=F("semester__id"))
-           .values("term_id")  # Group by term_id
-           .annotate(average=Round(Avg("percent")))  # Append aggregate info about that group
+           .values("term_id")# group by term_id
+           .annotate(average=Round(Avg("percent")))
            .annotate(students=Count("user_id", distinct=True))
-           .annotate(year=F("semester__year"), term=F("semester__semester"))  # Add other data fields
+           .annotate(year=F("semester__year"), term=F("semester__semester"))
         )
 
         # Convert query set into a dict + fix some data
