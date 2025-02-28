@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from core.models import LogPlay, WidgetInstance
-from util.semester import Semester
 from util.logging.session_play import SessionPlay
+from util.semester import Semester
 from util.logging.session_logger import SessionLogger
 from django.utils.timezone import now
 
