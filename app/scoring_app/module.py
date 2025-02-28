@@ -112,7 +112,6 @@ class ScoreModule(ABC):
             elif log_type == "final_score_from_client":
                 self.handle_log_client_final_score(log)
             elif log_type in ["question_answered", "SCORE_QUESTION_ANSWERED"]:
-                print("✅ Log is question_answered. Calling handle_log_question_answered()...")
                 self.handle_log_question_answered(log)  # THIS should lead to check_answer()
             elif log_type == "widget_interaction":
                 self.handle_log_widget_interaction(log)
@@ -129,15 +128,8 @@ class ScoreModule(ABC):
 
 
     def handle_log_question_answered(self, log):
-        print(f"\n🔥🔥🔥 handle_log_question_answered() CALLED in {self.__class__.__name__} 🔥🔥🔥")
-        print(f"🔍 Log Data: {log}")
-
         self.total_questions += 1
-        print(f"🧐 Calling check_answer() from {self.__class__.__name__}")
-
-        score = self.check_answer(log)  # THIS should call Pythond.check_answer()
-        print(f"✅ check_answer() returned score: {score}")
-
+        score = self.check_answer(log)
         self.verified_score += score
 
 
@@ -199,18 +191,18 @@ class ScoreModule(ABC):
             self.instance.get_qset(self.instance.id, timestamp)
 
         if self.instance.qset.data:
-            print("\n🔍 Checking self.instance.qset.find_questions()...")
+            # print("\nChecking self.instance.qset.find_questions()...")
             questions_list = self.instance.qset.find_questions()
-            print(f"🔢 Found {len(questions_list)} questions!")
+            # print(f" Found {len(questions_list)} questions!")
 
             # Convert self.questions into a dictionary
             self.questions = {q["id"]: q for q in questions_list}
 
             # Debug output
-            print("\n📋 Available Questions in self.questions:")
-            for qid in self.questions.keys():
-                print(f" - {qid}")
-            print("\n")
+            # print("\nAvailable Questions in self.questions:")
+            # for qid in self.questions.keys():
+            #     print(f" - {qid}")
+            # print("\n")
 
 
     def get_score_details(self):
@@ -243,7 +235,7 @@ class ScoreModule(ABC):
             ],
             "data_style": ["question", "response", "answer"],
             "score": score,
-            "feedback": self.get_feedback(log, question["answers"]),  # or question.answers if object
+            "feedback": self.get_feedback(log, question["answers"]),
             "type": log.log_type if hasattr(log, "log_type") else log["type"],
             "style": self.get_detail_style(score),
             "tag": "div",
