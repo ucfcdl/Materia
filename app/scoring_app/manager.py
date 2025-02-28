@@ -100,10 +100,10 @@ class ScoringUtil:
         score_module.validate_scores(play.created_at)
 
         # Build scoreboard
-        print("========================DEBUG=========================")
+        # print("========================DEBUG=========================")
         details = score_module.get_score_report()
-        print("========================DEBUG=========================")
-        print(details)
+        # print("========================DEBUG=========================")
+        # print(details)
 
         # Optionally attach Qset
         instance.get_qset(instance.id, play.created_at)
@@ -122,14 +122,14 @@ class ScoringUtil:
 
         import json
 
-        print("\n=== DEBUG: API Response (get_play_details) ===\n")
-        print(json.dumps(details, indent=4, default=json_serial))
-        print("\n============================================\n")
+        # print("\n=== DEBUG: API Response (get_play_details) ===\n")
+        # print(json.dumps(details, indent=4, default=json_serial))
+        # print("\n============================================\n")
 
 
-        print("again========================DEBUG=========================")
-        print(details)
-        print("========================DEBUG=========================")
+        # print("again========================DEBUG=========================")
+        # print(details)
+        # print("========================DEBUG=========================")
 
 
         return details
