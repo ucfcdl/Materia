@@ -60,9 +60,7 @@ class ScoringUtil:
     # Get score and play details for a SessionPlay
     @staticmethod
     def get_play_details(session_play):
-        """
-        Hard‐code the Python module for scoring
-        """
+        """Finds score module, runs it, and returns the details"""
 
         from util.logging.session_play import SessionPlay
         import os
