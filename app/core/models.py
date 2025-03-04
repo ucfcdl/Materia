@@ -877,9 +877,6 @@ class WidgetQset(SerializableModel):
     version = models.CharField(max_length=10, blank=True, null=True)
 
     def db_store(self):
-        import base64
-        import json
-
         try:
             # preserve the qset data, save with no data to reserve an ID while we do transformation and encoding
             # this... may be unnecessary?
@@ -915,59 +912,35 @@ class WidgetQset(SerializableModel):
 
     def as_json(self, *select_fields):
         json_qset = super().as_json(*select_fields)
-        decoded_qset_data = base64.b64decode(json_qset["data"][2:-1]).decode("utf-8")  # Slicing removes the b' ... '
+        decoded_qset_data = base64.b64decode(json_qset["data"][2:-1]).decode("utf-8")
         json_qset["data"] = json.loads(decoded_qset_data)
         return json_qset
 
-    # TODO: implement this, old code below
-
-
 
     def find_questions(self):
-        import json
-        import base64
-        """Extracts questions from qset data, ensuring proper Base64 decoding."""
+        """Extracts questions from qset data, ensuring data is parsed correctly."""
         if not self.data:
-            print("❌ No data in qset!")
+            # print(" No data in qset!")
             return []
 
-        # 🔍 Debug: Print raw Base64 data
-        print(f"🔍 Raw Base64 self.data: {repr(self.data)}")
-
-        # Decode Base64 if data is bytes
+        # Ensure self.data is a dictionary
         try:
-            if isinstance(self.data, bytes):
-                print("🔍 self.data is bytes, decoding Base64...")
-                decoded_data = base64.b64decode(self.data).decode("utf-8")
-            elif isinstance(self.data, str):
-                print("🔍 self.data is string, assuming it's already decoded...")
-                decoded_data = self.data  # Assume it's already a string
-            else:
-                print("❌ Unexpected data format in qset!")
-                return []
-        except Exception as e:
-            print(f"❌ Base64 Decoding Error in find_questions: {e}")
-            return []
-
-        # 🔍 Debug: Print decoded JSON string
-        print(f"🔍 Decoded JSON String: {repr(decoded_data)}")
-
-        # Parse JSON
-        try:
-            parsed_data = json.loads(decoded_data)
+            if isinstance(self.data, str):
+                self.data = json.loads(self.data)  # Convert from JSON string to dictionary
+            elif isinstance(self.data, bytes):
+                self.data = json.loads(self.data.decode("utf-8"))  # Decode bytes & parse JSON
         except json.JSONDecodeError as e:
-            print(f"❌ JSON Decoding Error in find_questions: {e}")
+            print(f" JSON Decoding Error in find_questions: {e}")
             return []
 
-        # Check for "items" key
-        if "items" not in parsed_data:
-            print("❌ 'items' key missing in qset data!")
+        if "items" not in self.data:
+            print(" 'items' key missing in qset data!")
             return []
 
         questions = []
-        print(f"✅ Found {len(parsed_data['items'])} items in qset data.")
+        print(f" Found {len(self.data['items'])} items in qset data.")
 
-        for item in parsed_data["items"]:
+        for item in self.data["items"]:
             if "id" in item and "questions" in item:
                 question_entry = {
                     "id": item["id"],
@@ -976,7 +949,7 @@ class WidgetQset(SerializableModel):
                 }
                 questions.append(question_entry)
 
-        print(f"🔢 Extracted {len(questions)} questions from qset.")
+        print(f" Extracted {len(questions)} questions from qset.")
         return questions
 
     # TODO: find the assets!!!
