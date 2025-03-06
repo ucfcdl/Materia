@@ -192,11 +192,14 @@ class ScoreModule(ABC):
 
         if self.instance.qset.data:
             # print("\nChecking self.instance.qset.find_questions()...")
-            questions_list = self.instance.qset.find_questions()
-            # print(f" Found {len(questions_list)} questions!")
+            questions_list = self.instance.qset.find_questions_list(self.instance.qset, create_ids=True)
+            print(f" Found {len(questions_list)} questions!")
 
+            for q in questions_list:
+                print(f" - {q['id']}")
             # Convert self.questions into a dictionary
-            self.questions = {q["id"]: q for q in questions_list}
+            # self.questions = {q["id"]: q for q in questions_list}
+            self.questions = questions_list
 
             # Debug output
             # print("\nAvailable Questions in self.questions:")

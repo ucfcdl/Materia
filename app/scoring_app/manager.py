@@ -68,10 +68,10 @@ class ScoringUtil:
         play = session_play.data
         widget_folder = f"staticfiles/widget/{instance.widget.id}-{instance.widget.clean_name}/_score-modules"
 
-        # print("========================DEBUG=========================")
-        # print(f"Widget folder: {widget_folder}")
-        # print(f"clean_name: {instance.widget.clean_name}")
-        # print("========================DEBUG=========================")
+        print("========================DEBUG=========================")
+        print(f"Widget folder: {widget_folder}")
+        print(f"clean_name: {instance.widget.clean_name}")
+        print("========================DEBUG=========================")
         script_path = os.path.join(widget_folder, "score_module.py")
         # print("DEBUG: Attempting to load:", script_path)
 

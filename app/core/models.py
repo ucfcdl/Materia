@@ -9,6 +9,7 @@ import base64
 import json
 import logging
 import os
+import uuid
 from datetime import datetime
 
 from django.contrib.auth.models import User
@@ -916,41 +917,101 @@ class WidgetQset(SerializableModel):
         json_qset["data"] = json.loads(decoded_qset_data)
         return json_qset
 
+    @staticmethod
+    def is_question(node: dict) -> bool:
+        """Check if a dict is a 'question' object (has 'id','type','questions','answers')."""
+        if not isinstance(node, dict):
+            return False
+        required = ["id", "type", "questions", "answers"]
+        for key in required:
+            if key not in node:
+                return False
+        if not node["type"] or not node["questions"] or not node["answers"]:
+            return False
+        return True
 
-    def find_questions(self):
-        """Extracts questions from qset data, ensuring data is parsed correctly."""
+
+    @staticmethod
+    def find_questions_list(self, create_ids=False):
+        """
+        Decodes base64 JSON in `self.data`, parses, then calls `find_questions()`.
+        Returns a list of question dicts.
+        """
         if not self.data:
-            # print(" No data in qset!")
+            print("No data in qset!")
             return []
 
-        # Ensure self.data is a dictionary
+        # Step 1: base64 decode => JSON
+        raw_json = base64.b64decode(self.data).decode("utf-8")
         try:
-            if isinstance(self.data, str):
-                self.data = json.loads(self.data)  # Convert from JSON string to dictionary
-            elif isinstance(self.data, bytes):
-                self.data = json.loads(self.data.decode("utf-8"))  # Decode bytes & parse JSON
+            parsed_data = json.loads(raw_json)
         except json.JSONDecodeError as e:
-            print(f" JSON Decoding Error in find_questions: {e}")
+            logger.warning(f"Could not decode/parse Qset id={self.id}: {e}")
             return []
 
-        if "items" not in self.data:
-            print(" 'items' key missing in qset data!")
-            return []
+        # Step 2: Call the static method to find questions
+        questions_list = WidgetQset.find_questions(parsed_data, create_ids=create_ids)
+        return questions_list
 
-        questions = []
-        print(f" Found {len(self.data['items'])} items in qset data.")
 
-        for item in self.data["items"]:
-            if "id" in item and "questions" in item:
-                question_entry = {
-                    "id": item["id"],
-                    "questions": item["questions"],
-                    "answers": item.get("answers", []),  # Default to empty if missing
-                }
-                questions.append(question_entry)
+    @staticmethod
+    def find_questions(source, create_ids: bool = False, questions=None) -> list:
+        """
+        Recursively walks `source` (dict or list) to find 'question' nodes.
+        Appends to `questions`.
+        """
+        create_ids = True
+        if questions is None:
+            print("questions is None!")
+            questions = []
 
-        print(f" Extracted {len(questions)} questions from qset.")
+        if isinstance(source, dict):
+            # *** Must call the static method with the class name
+            if WidgetQset.is_question(source):
+                if create_ids:
+                    if not source.get("id"):
+                        source["id"] = str(uuid.uuid4())
+                    if isinstance(source.get("answers"), list):
+                        for ans in source["answers"]:
+                            if not ans.get("id"):
+                                ans["id"] = str(uuid.uuid4())
+
+                questions.append(source)
+            else:
+                # Recurse deeper
+                for key, val in source.items():
+                    if isinstance(val, (dict, list)):
+                        # *** Must call the static method with the class name
+                        WidgetQset.find_questions(val, create_ids, questions)
+
+        elif isinstance(source, list):
+            for item in source:
+                if isinstance(item, (dict, list)):
+                    # *** Must call the static method with the class name
+                    WidgetQset.find_questions(item, create_ids, questions)
+
         return questions
+
+    # def find_questions(WidgetAsset, qset_id, recursiveQGroup.assets):
+    #     if source.is_array():
+    #         for source in key:
+    #             if is_question(source):
+    #                 json = json_encode(source)
+    #                 real_q = forge.from_json(json)
+    #                 if create_ids:
+    #                     if !real_id:
+    #                         real_id = uuid().random
+    #                     for question in real_questions:
+    #                         if question.id == None:
+    #                             question.id = uuid().random
+    #                     source[key] = json
+    #                 if real_question:
+    #                     question.id = real_question.id
+    #                 else:
+    #                     questions[] = real_question
+    #             elif source.is_array():
+    #                 find_questions(source, create_ids, questions)
+
 
     # TODO: find the assets!!!
     # Widget_Asset_Manager::register_assets_to_item(Widget_Asset::MAP_TYPE_QSET, $qset_id, $recursiveQGroup->assets);
