@@ -25,7 +25,7 @@ class SessionLogger:
         # Process and save each log
         for log in logs:
             log_type = default_if_none(log.get("type"), 0)
-            item_id = default_if_none(log.get("item_id"), "")
+            item_id = default_if_none(log.get("item_id"), "2")
             text = default_if_none(log.get("text"), "")
             value = default_if_none(log.get("value"), "")
             game_time = default_if_none(log.get("game_time"), 0)

@@ -107,16 +107,22 @@ class ScoreModule(ABC):
             log_type = log.log_type if hasattr(log, "log_type") else log["type"]
             print(f"📝 Processing log of type: {log_type}")
 
-            if log_type == "widget_end":
+            if log_type in ["widget_end", "WIDGET_END"]:
                 self.finished = True
-            elif log_type == "final_score_from_client":
+            elif log_type in ["final_score_from_client", "FINAL_SCORE_FROM_CLIENT"]:
                 self.handle_log_client_final_score(log)
             elif log_type in ["question_answered", "SCORE_QUESTION_ANSWERED"]:
                 self.handle_log_question_answered(log)  # THIS should lead to check_answer()
-            elif log_type == "widget_interaction":
+            elif log_type in ["widget_interaction", "SCORE_WIDGET_INTERACTION"]:
+                print("WE ARE HANDLING WIDGET INTERACTION!!!!!")
                 self.handle_log_widget_interaction(log)
-            elif log_type == "score_participation":
+            elif log_type in ["score_participation", "SCORE_PARTICIPATION"]:
                 self.verified_score = log.value if hasattr(log, "value") else log["value"]
+
+
+    def handle_log_widget_interaction(self,log):
+        """abstract method for handling widget interactions"""
+        pass
 
 
     def handle_log_client_final_score(self, log)->None:
@@ -200,6 +206,10 @@ class ScoreModule(ABC):
             # Convert self.questions into a dictionary
             # self.questions = {q["id"]: q for q in questions_list}
             self.questions = questions_list
+            print("self.questions length is ", len(self.questions))
+            for question in self.questions:
+                print("ID is ", question["id"])
+            print("self.questions is : ", self.questions)
 
             # Debug output
             # print("\nAvailable Questions in self.questions:")
