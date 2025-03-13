@@ -2,7 +2,7 @@ import json
 
 from django.core import serializers
 from django.db import models
-from django.db.models import QuerySet, Model
+from django.db.models import Model, QuerySet
 
 
 # A model containing an as_json function that will return a

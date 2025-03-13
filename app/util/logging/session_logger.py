@@ -1,8 +1,7 @@
 from datetime import datetime
 
-from django.utils.timezone import make_aware
-
 from core.models import Log
+from django.utils.timezone import make_aware
 from util.logging.session_play import SessionPlay
 from util.widget.validator import ValidatorUtil
 
@@ -13,7 +12,9 @@ class SessionLogger:
     @staticmethod
     def store_log_array(play_session: SessionPlay, logs: list[dict]):
         # Validate play_session
-        if play_session.is_preview or not ValidatorUtil.is_valid_long_hash(play_session.data.id):
+        if play_session.is_preview or not ValidatorUtil.is_valid_long_hash(
+            play_session.data.id
+        ):
             print("Incorrect play_id")  # TODO: better logging
             return
 
@@ -32,15 +33,25 @@ class SessionLogger:
             created_at = make_aware(datetime.now())
 
             SessionLogger.add_log(
-                SessionLogger.get_log_type(log_type), item_id, text,
-                value, game_time, created_at, play_session
+                SessionLogger.get_log_type(log_type),
+                item_id,
+                text,
+                value,
+                game_time,
+                created_at,
+                play_session,
             )
 
     # Shortcut for adding a single log
     @staticmethod
     def add_log(
-            log_type: str, item_id: str, text: str, value: str, game_time: int,
-            created_at: datetime, play_id: SessionPlay
+        log_type: str,
+        item_id: str,
+        text: str,
+        value: str,
+        game_time: int,
+        created_at: datetime,
+        play_id: SessionPlay,
     ) -> Log:
         log = Log(
             play_id=play_id.data.id,  # TODO change this if we end up making it a foreign key field
@@ -139,17 +150,17 @@ class SessionLogger:
                 return Log.LogType.EMPTY
 
     def get_preview_logs(play_session: SessionPlay):
-        """
-        Return any logs for a preview from session or memory store.
-        """
-        request = getattr(settings, "CURRENT_REQUEST", None)
-        if not request:
-            return []
-        session_key = f"previewPlayLogs.{play_session.data.id}"
-        logs = request.session.get(session_key, [])
-        # Convert each dict into a pseudo-Log object or just keep as dicts
-        # and standardize them to your code’s needs.
-        return logs
+        # TODO: return logs form a preview form session or memory?
+        # request = getattr(settings, "CURRENT_REQUEST", None)
+        # if not request:
+        #     return []
+        # session_key = f"previewPlayLogs.{play_session.data.id}"
+        # logs = request.session.get(session_key, [])
+        # # Convert each dict into a pseudo-Log object or just keep as dicts
+        # # and standardize them to your code’s needs.
+        # return logs
+        pass
+
 
 # TODO maybe move this into a util class?
 def default_if_none(value, default):
