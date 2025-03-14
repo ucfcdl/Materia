@@ -15,14 +15,12 @@ from datetime import datetime
 from django.contrib.auth.models import User
 from django.core import serializers
 from django.db import models, transaction
-from django.utils.timezone import make_aware
-from django.utils.translation import gettext_lazy
-
-from util.serialization import SerializableModel
-from util.widget.validator import ValidatorUtil
-
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils.timezone import make_aware
+from django.utils.translation import gettext_lazy
+from util.serialization import SerializableModel
+from util.widget.validator import ValidatorUtil
 
 logger = logging.getLogger("django")
 
@@ -877,21 +875,43 @@ class WidgetQset(SerializableModel):
     data = models.TextField()
     version = models.CharField(max_length=10, blank=True, null=True)
 
+    # maybe can I can have a field of questions for easier access
+    questions = []
+
     def db_store(self):
         try:
             # preserve the qset data, save with no data to reserve an ID while we do transformation and encoding
             # this... may be unnecessary?
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print("DOING DB STORE")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             save_data = self.data
             self.version = self.version if self.version else 0
             self.data = ""
             self.created_at = make_aware(datetime.now())
             self.save()
 
+            print("==========================================")
+            print("==========================================")
+            print("==========================================")
+            print("==========================================")
+            print("==========================================")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print("DOING DB STORE")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            self.set_qset_question_ids(save_data["data"]["items"])
+            encoded = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
+            print("==========================================")
+            print("==========================================")
+            print("==========================================")
+            print("==========================================")
+            print("==========================================")
             # at this point we used to convert the qset to an associative array so we could go through it and
             #  identify questions, then save those as separate database entities
             # Python doesn't have associative arrays, so we're going to have to overhaul that process
             # just skip it for now
             # questions = self.find_questions()
+
 
             encoded = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode(
                 "utf-8"
@@ -901,6 +921,7 @@ class WidgetQset(SerializableModel):
 
             # redo this when find_questions is rewritten
             # or just have find_questions do the saving?
+            # find question should only find the questions, we should have our own funciton to set uuids
             # for q in questions:
             #     q.db_store(self.id)
 
@@ -911,150 +932,38 @@ class WidgetQset(SerializableModel):
 
         return False
 
-    def as_json(self, *select_fields):
-        json_qset = super().as_json(*select_fields)
-        decoded_qset_data = base64.b64decode(json_qset["data"][2:-1]).decode("utf-8")
-        json_qset["data"] = json.loads(decoded_qset_data)
-        return json_qset
-
     @staticmethod
-    def is_question(node: dict) -> bool:
-        """Check if a dict is a 'question' object (has 'id','type','questions','answers')."""
-        if not isinstance(node, dict):
-            return False
-        required = ["id", "type", "questions", "answers"]
-        for key in required:
-            if key not in node:
-                return False
-        if not node["type"] or not node["questions"] or not node["answers"]:
-            return False
-        return True
+    def dfs_traversal(data, questions):
+        if isinstance(data, list):
+            for item in data:
+                WidgetQset.dfs_traversal(item, questions)
+        elif isinstance(data, dict):
+            if data.get("materiaType") == "question":
+                print("\n🚀 Found Question:", data.get("questions", "NO QUESTION TEXT"))
+                old_id = data.get("id", "NULL")
+                new_id = str(uuid.uuid4())
+                data["id"] = new_id  # Assign a unique ID
+                print(f"🔹 Old ID: {old_id} -> New ID: {new_id}\n")
+                questions.append(data)
+            for item in data.values():
+                WidgetQset.dfs_traversal(item, questions)
 
 
-    @staticmethod
-    def find_questions_list(self, create_ids=False):
-        """
-        Decodes base64 JSON in `self.data`, parses, then calls `find_questions()`.
-        Returns a list of question dicts.
-        """
-        if not self.data:
-            print("No data in qset!")
-            return []
-
-        # Step 1: base64 decode => JSON
-        raw_json = base64.b64decode(self.data).decode("utf-8")
-        try:
-            parsed_data = json.loads(raw_json)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Could not decode/parse Qset id={self.id}: {e}")
-            return []
-
-        # Step 2: Call the static method to find questions
-        questions_list = WidgetQset.find_questions(parsed_data, create_ids=create_ids)
-        return questions_list
+    def set_qset_question_ids(self,qset):
+        self.questions = []
+        WidgetQset.dfs_traversal(qset, questions)
 
 
-    @staticmethod
-    def find_questions(source, create_ids: bool = False, questions=None) -> list:
-        """
-        Recursively walks `source` (dict or list) to find 'question' nodes.
-        Appends to `questions`.
-        """
-        create_ids = True
-        if questions is None:
-            print("questions is None!")
-            questions = []
-
-        if isinstance(source, dict):
-            # *** Must call the static method with the class name
-            if WidgetQset.is_question(source):
-                if create_ids:
-                    if not source.get("id"):
-                        source["id"] = str(uuid.uuid4())
-                    if isinstance(source.get("answers"), list):
-                        for ans in source["answers"]:
-                            if not ans.get("id"):
-                                ans["id"] = str(uuid.uuid4())
-
-                questions.append(source)
-            else:
-                # Recurse deeper
-                for key, val in source.items():
-                    if isinstance(val, (dict, list)):
-                        # *** Must call the static method with the class name
-                        WidgetQset.find_questions(val, create_ids, questions)
-
-        elif isinstance(source, list):
-            for item in source:
-                if isinstance(item, (dict, list)):
-                    # *** Must call the static method with the class name
-                    WidgetQset.find_questions(item, create_ids, questions)
-
-        return questions
-
-    # def find_questions(WidgetAsset, qset_id, recursiveQGroup.assets):
-    #     if source.is_array():
-    #         for source in key:
-    #             if is_question(source):
-    #                 json = json_encode(source)
-    #                 real_q = forge.from_json(json)
-    #                 if create_ids:
-    #                     if !real_id:
-    #                         real_id = uuid().random
-    #                     for question in real_questions:
-    #                         if question.id == None:
-    #                             question.id = uuid().random
-    #                     source[key] = json
-    #                 if real_question:
-    #                     question.id = real_question.id
-    #                 else:
-    #                     questions[] = real_question
-    #             elif source.is_array():
-    #                 find_questions(source, create_ids, questions)
-
-
-    # TODO: find the assets!!!
-    # Widget_Asset_Manager::register_assets_to_item(Widget_Asset::MAP_TYPE_QSET, $qset_id, $recursiveQGroup->assets);
-    # public static function find_questions(&$source, $create_ids=false, &$questions=[])
-    # {
-    #     if (is_array($source))
-    #     {
-    #         foreach ($source as $key => &$q)
-    #         {
-    #             if (self::is_question($q))
-    #             {
-    #                 $json = json_encode($q);
-
-    #                 $real_q = Widget_Question::forge()->from_json($json);
-
-    #                 // new question sets need ids
-    #                 if ($create_ids)
-    #                 {
-    #                     if (empty($real_q->id)) $real_q->id = \Str::random('uuid');
-    #                     foreach ($real_q->answers as &$a)
-    #                     {
-    #                         if (empty($a['id'])) $a['id'] = \Str::random('uuid');
-    #                     }
-    #                     $source[$key] = json_decode(json_encode($real_q), true);
-    #                 }
-    #                 if ($real_q->id)	$questions[$real_q->id] = $real_q;
-    #                 else $questions[] = $real_q;
-    #             }
-    #             elseif (is_array($q))
-    #             {
-    #                 // INCEPTION TIME!!
-    #                 self::find_questions($q, $create_ids, $questions);
-    #             }
-    #         }
-    #     }
-    #     return $questions;
-    # }
+    def get_questions(self):
+        print(f"questions: {self.questions}")
+        return self.questions
 
     class Meta:
         db_table = "widget_qset"
         indexes = [
             models.Index(fields=["created_at"], name="widget_qset_created_at"),
         ]
+
 
 
 class UserSettings(models.Model):
