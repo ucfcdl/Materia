@@ -198,7 +198,7 @@ class ScoreModule(ABC):
 
         if self.instance.qset.data:
             # print("\nChecking self.instance.qset.find_questions()...")
-            questions_list = self.instance.qset.find_questions_list(self.instance.qset, create_ids=True)
+            questions_list = self.instance.qset.get_questions()
             print(f" Found {len(questions_list)} questions!")
 
             for q in questions_list:
