@@ -947,7 +947,7 @@ class WidgetQset(SerializableModel):
                     return
 
                 new_id = str(uuid.uuid4())
-                new_id.replace("-", "")
+                new_id = new_id.replace("-", "")
                 data["id"] = new_id  # Assign a unique ID
                 print(f"🔹 Old ID: {old_id} -> New ID should be less than 32: {new_id}\n")
                 # question_obj = Question(
@@ -957,7 +957,8 @@ class WidgetQset(SerializableModel):
                 #     created_at=datetime.now(),
                 # )
                 # question_obj.save()  # ✅ Save it to the database
-                questions.append(question_obj)
+                questions.append(data)
+                print(f"questions list so far: {questions}")
 
             for item in data.values():
                 WidgetQset.dfs_traversal(item, questions,seen)
@@ -968,8 +969,22 @@ class WidgetQset(SerializableModel):
         new_questions = []
         seen = set()
         WidgetQset.dfs_traversal(qset, new_questions, seen)
-        self.questions.set(new_questions)
+        print("Does this run")
+        question_objects = []
+        for q_data in new_questions:
+            print(f"question data is: {q_data}")
+            question_obj = Question.objects.create(
+                type=q_data.get("type", "Unknown"),
+                text=q_data["questions"][0]["text"] if q_data.get("questions") else "No Text",
+                hash=q_data["id"],
+                created_at=datetime.now(),
+            )
+            question_objects.append(question_obj)
+            print(f"question objects so far: {question_objects}")
+
+        self.questions.set(question_objects)
         self.save()
+        print("It does")
 
 
     def get_questions(self):
