@@ -886,14 +886,14 @@ class WidgetQset(SerializableModel):
             print("DOING DB STORE")
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             if not self.data:
-                print("❌ No data in Qset")
+                print("No data in Qset")
                 return False
 
             save_data = self.data
             print("self.data: ", self.data)
             if isinstance(save_data, str):
-                print("🔹 save_data is already a string, decoding...")
-                save_data = json.loads(save_data)  # Convert JSON string back to dict
+                print(" save_data is already a string, decoding...")
+                save_data = json.loads(save_data)
 
             self.version = self.version if self.version else "0"
             self.data = ""
@@ -907,12 +907,7 @@ class WidgetQset(SerializableModel):
             encoded = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
             print("==========================================")
             print("==========================================")
-            # at this point we used to convert the qset to an associative array so we could go through it and
-            #  identify questions, then save those as separate database entities
-            # Python doesn't have associative arrays, so we're going to have to overhaul that process
-            # just skip it for now
-            # questions = self.find_questions()
-            # 🔹 Only encode if it's not already encoded
+            # Only encode if it's not already encoded
             if not isinstance(save_data, str):
                 encoded = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
                 self.data = encoded
@@ -925,7 +920,7 @@ class WidgetQset(SerializableModel):
         except Exception as e:
             logger.info("Could not save qset")
             logger.exception("")
-            print(f"❌ Exception in db_store: {e}")
+            print(f"Exception in db_store: {e}")
             return False
             logger.info("Could not save qset")
             logger.exception("")
@@ -938,25 +933,18 @@ class WidgetQset(SerializableModel):
                 WidgetQset.dfs_traversal(item, questions,seen)
         elif isinstance(data, dict):
             if data.get("materiaType") == "question":
-                print("\n🚀 Found Question:", data.get("text", "NO QUESTION TEXT"), "with answer of ", data.get("answers", "NO ANSWER"))
+                print("\n Found Question:", data.get("text", "NO QUESTION TEXT"), "with answer of ", data.get("answers", "NO ANSWER"))
                 # check if we processed already
                 # question_text = data.get("text", "NO QUESTION TEXT")
                 old_id = data.get("id", "NULL")
                 if old_id and old_id in seen_ids:
-                    print("⚠️ Skipping duplicate question:", old_id)
+                    print("Skipping duplicate question:", old_id)
                     return
 
                 new_id = str(uuid.uuid4())
                 new_id = new_id.replace("-", "")
                 data["id"] = new_id  # Assign a unique ID
-                print(f"🔹 Old ID: {old_id} -> New ID should be less than 32: {new_id}\n")
-                # question_obj = Question(
-                #     type=data.get("type", "Unknown"),
-                #     text=question_text,
-                #     hash=new_id,  # ✅ Make sure this is <= 32 chars
-                #     created_at=datetime.now(),
-                # )
-                # question_obj.save()  # ✅ Save it to the database
+                print(f" Old ID: {old_id} -> New ID should be less than 32: {new_id}\n")
                 questions.append(data)
                 print(f"questions list so far: {questions}")
 
