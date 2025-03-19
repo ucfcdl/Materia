@@ -3,8 +3,12 @@ import logging
 
 from core.models import Widget, WidgetInstance
 from django.core import serializers
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotFound, HttpResponseForbidden
-
+from django.http import (
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    HttpResponseNotFound,
+    JsonResponse,
+)
 from util.widget.widget_util import WidgetUtil
 
 logger = logging.getLogger("django")
@@ -50,10 +54,11 @@ class WidgetsApi:
             pass
 
         # Get specific set of widget instances
-        instances = (WidgetInstance.objects
-                     .filter(pk__in=instance_ids)
-                     .filter(is_deleted=get_deleted)
-                     .order_by("-created_at", "-id"))
+        instances = (
+            WidgetInstance.objects.filter(pk__in=instance_ids)
+            .filter(is_deleted=get_deleted)
+            .order_by("-created_at", "-id")
+        )
         # TODO: ^ make this functionality into its own 'manager' class like the php code?
 
         instances = instances[:80]  # TODO: add way to control limit?
@@ -63,7 +68,9 @@ class WidgetsApi:
         for raw_json_instance in raw_json_instances:
             fields = raw_json_instance["fields"]
             WidgetUtil.convert_booleans(fields)
-            fields["widget"] = WidgetUtil.hack_return(Widget.objects.filter(pk=fields["widget"]))[0]
+            fields["widget"] = WidgetUtil.hack_return(
+                Widget.objects.filter(pk=fields["widget"])
+            )[0]
             fields["id"] = raw_json_instance["pk"]
             json_instances.append(fields)
             # TODO fix serialization
@@ -90,4 +97,4 @@ class WidgetsApi:
 
         # TODO check preview mode, see php
 
-        return JsonResponse({"qset": instance.qset.as_json()})
+        return JsonResponse({"qset": instance.qset.as_dict()})

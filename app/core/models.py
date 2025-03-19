@@ -864,6 +864,15 @@ class WidgetMetadata(models.Model):
 
 
 class WidgetQset(SerializableModel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._data_dict: dict | None = None
+        if hasattr(self, "_data") and self._data:  # Loaded from DB
+            self._data_dict = self._decode_data()
+        elif "data" in kwargs:  # Initializing new instance from Python
+            self._data_dict = kwargs["data"]
+
+
     id = models.BigAutoField(primary_key=True)
     instance = models.ForeignKey(
         "WidgetInstance",
@@ -872,59 +881,69 @@ class WidgetQset(SerializableModel):
         db_column="inst_id",
     )
     created_at = models.DateTimeField(default=datetime.now)
-    data = models.TextField()
+    # data = models.TextField()
+    _data = models.TextField(db_column="data")
     version = models.CharField(max_length=10, blank=True, null=True)
 
     # maybe can I can have a field of questions for easier access
     questions = []
 
-    def db_store(self):
+    @property
+    def data(self):
+        # Return self as a dict
+        if self._data_dict is None:
+            self._data_dict = self._decode_data()
+        return self._data_dict
+
+
+    @data.setter
+    def data(self, new_data):
+        self._data_dict = new_data
+
+
+    def _decode_data(self):
         try:
-            # preserve the qset data, save with no data to reserve an ID while we do transformation and encoding
-            # this... may be unnecessary?
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            print("DOING DB STORE")
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            return json.loads(base64.b64decode(self._data).decode("utf-8")) if self._data else {}
+        except Exception as e:
+            logger.error(f"Error decoding Qset data: {e}")
+            return {}
+
+    def _encode_data(self):
+        try:
+            return base64.b64encode(json.dumps(self._data_dict).encode("utf-8")).decode("utf-8") if self._data_dict else ""
+        except Exception as e:
+            logger.error(f"Error encoding Qset data: {e}")
+            return ""
+
+
+    def save(self, *args, **kwargs):
+            self._data = self._encode_data()
+            self.created_at = make_aware(datetime.now())
+            super().save(*args, **kwargs)
+
+
+    def db_store(self):
+        """store and set question ids in databse"""
+        try:
             if not self.data:
-                print("No data in Qset")
+                logger.warning("No data in Qset, skipping save.")
                 return False
 
             save_data = self.data
-            print("self.data: ", self.data)
             if isinstance(save_data, str):
-                print(" save_data is already a string, decoding...")
                 save_data = json.loads(save_data)
 
             self.version = self.version if self.version else "0"
-            self.data = ""
             self.created_at = make_aware(datetime.now())
-            self.save()
-
-            print("==========================================")
-            print("DOING DB STORE: Setting question IDs")
-            print("==========================================")
+            #set the question ids and also save the list of questions
             self.set_qset_question_ids(save_data["items"])
-            encoded = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
-            print("==========================================")
-            print("==========================================")
-            # Only encode if it's not already encoded
-            if not isinstance(save_data, str):
-                encoded = base64.b64encode(json.dumps(save_data).encode("utf-8")).decode("utf-8")
-                self.data = encoded
-            else:
-                self.data = save_data  # If it was already encoded, keep it
-
+            #encode the processed data
+            self.data = save_data
             self.save()
             return True
-
         except Exception as e:
-            logger.info("Could not save qset")
-            logger.exception("")
-            print(f"Exception in db_store: {e}")
+            logger.error(f"Could not save Qset: {e}")
             return False
-            logger.info("Could not save qset")
-            logger.exception("")
-
 
     @staticmethod
     def dfs_traversal(data, questions, seen):
@@ -942,8 +961,9 @@ class WidgetQset(SerializableModel):
                     return
 
                 new_id = str(uuid.uuid4())
+                #to make it 32 chars instead of 36 so it fits
                 new_id = new_id.replace("-", "")
-                data["id"] = new_id  # Assign a unique ID
+                data["id"] = new_id
                 print(f" Old ID: {old_id} -> New ID should be less than 32: {new_id}\n")
                 questions.append(data)
                 print(f"questions list so far: {questions}")
@@ -978,6 +998,18 @@ class WidgetQset(SerializableModel):
     def get_questions(self):
         print(f"questions: {self.questions}")
         return self.questions
+
+    def as_dict(self):
+        """Return a JSON-serializable dictionary."""
+        json_qset = {
+            "id": self.id,
+            "instance": self.instance.id,
+            "created_at": self.created_at.isoformat(),
+            "version": self.version,
+            "data": self.data,
+        }
+        return json_qset
+
 
     class Meta:
         db_table = "widget_qset"
