@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from 'react-query'
 import LoadingIcon from './loading-icon';
-import { apiGetWidgetInstance, apiGetQuestionSet, apiCanBePublishedByCurrentUser, apiSaveWidget, apiGetWidgetLock, apiGetWidget, apiAuthorVerify, apiIsGenerable, apiWidgetPromptGenerate} from '../util/api'
+import { apiGetWidgetInstance, apiGetQuestionSet, apiCanBePublishedByCurrentUser, apiSaveWidget, apiGetWidgetLock, apiGetWidget, apiUserVerify, apiIsGenerable, apiWidgetPromptGenerate} from '../util/api'
 import NoPermission from './no-permission'
 import Alert from './alert'
 import { creator } from './materia-constants';
@@ -28,7 +28,7 @@ const WidgetCreator = ({instId, widgetId, minHeight='', minWidth=''}) => {
 		dialogType: 'embed_dialog',
 		heartbeatEnabled: true,
 		hasCreatorGuide: false,
-		creatorGuideUrl: window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')) + '/creators-guide',
+		creatorGuideUrl: window.location.pathname.replace('create/', '') + 'creators-guide/',
 		showActionBar: true,
 		showRollbackConfirm: false,
 		showGenerationConfirm: false,
@@ -146,7 +146,7 @@ const WidgetCreator = ({instId, widgetId, minHeight='', minWidth=''}) => {
 
 	useQuery({
 		queryKey: 'heartbeat',
-		queryFn: () => apiAuthorVerify(),
+		queryFn: () => apiUserVerify(),
 		staleTime: 30000,
 		refetchInterval: 30000,
 		enabled: creatorState.heartbeatEnabled,
@@ -427,11 +427,11 @@ const WidgetCreator = ({instId, widgetId, minHeight='', minWidth=''}) => {
 			return false;
 		}
 		let newWidget = {
-			widget_id: widgetId,
+			widgetId: widgetId,
 			name: instanceName,
 			qset: { version, data: qset },
-			is_draft: saveModeRef.current !== 'publish',
-			inst_id: instIdRef.current,
+			isDraft: saveModeRef.current !== 'publish',
+			instId: instIdRef.current,
 		}
 
 		// requested the current qset from the creator to cache for qset history rollback

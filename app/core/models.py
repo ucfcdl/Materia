@@ -205,7 +205,7 @@ class DateRange(models.Model):
         ]
 
 
-class Log(models.Model):
+class Log(SerializableModel):
     class LogType(models.TextChoices):
         EMPTY = "", gettext_lazy("Empty")
         BUTTON_PRESS = "BUTTON_PRESS", gettext_lazy("Button Press")
@@ -582,7 +582,8 @@ class Question(models.Model):
     data = models.TextField(blank=True, null=True)
     hash = models.CharField(unique=True, max_length=32)
     qset = models.ManyToManyField(
-        "WidgetQset", through=MapQuestionToQset, related_name="questions"
+        # Question model already has questions related name
+        "WidgetQset", through=MapQuestionToQset, related_name="widget_questions"
     )
 
     class Meta:
@@ -612,7 +613,7 @@ class UserExtraAttempts(models.Model):
         ]
 
 
-class Widget(models.Model):
+class Widget(SerializableModel):
     # update these to the relevant paths when those Python files exist
     PATHS_PLAYDATA = os.path.join("_exports", "playdata_exporters.php")
     PATHS_SCOREMOD = os.path.join("_score-modules", "score_module.php")
@@ -653,6 +654,12 @@ class Widget(models.Model):
     creator_guide = models.CharField(max_length=255, default="")
     player_guide = models.CharField(max_length=255, default="")
 
+    def as_dict(self, select_fields: list[str] = None, serialize_fks: list[str] = None):
+        result = super().as_dict(select_fields, serialize_fks)
+        result["dir"] = f"{self.id}-{self.clean_name}{os.sep}"
+        result["meta_data"] = self.metadata_clean()
+        return result
+
     def metadata_clean(self):
         meta_raw = self.metadata.all()
         meta_final = {}
@@ -668,6 +675,12 @@ class Widget(models.Model):
         # set the 'meta_data' property of this Widget object for potential future reads
         self.meta_data = meta_final
         return self.meta_data
+
+    def publishable_by(self, user_id: int) -> bool:
+        if not self.restrict_publish:
+            return True
+        return True  # TODO: return ! Perm_Manager::is_student($user_id);
+
 
     @staticmethod
     def make_clean_name(name):
@@ -712,7 +725,11 @@ class Widget(models.Model):
         ]
 
 
-class WidgetInstance(models.Model):
+class WidgetInstance(SerializableModel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._qset = None
+
     id = models.CharField(primary_key=True, max_length=10, db_collation="utf8_bin")
     widget = models.ForeignKey(
         "Widget",
@@ -733,13 +750,13 @@ class WidgetInstance(models.Model):
     is_draft = models.BooleanField(default=False)
     height = models.IntegerField(default=0)
     width = models.IntegerField(default=0)
-    open_at = models.IntegerField(default=None, null=True)
-    close_at = models.IntegerField(default=None, null=True)
+    open_at = models.DateTimeField(default=None, null=True)
+    close_at = models.DateTimeField(default=None, null=True)
     attempts = models.IntegerField(default=-1)
     is_deleted = models.BooleanField(default=False)
     guest_access = models.BooleanField(default=False)
     is_student_made = models.BooleanField(default=False)
-    updated_at = models.IntegerField(default=None, null=True)
+    updated_at = models.DateTimeField(default=None, null=True)
     embedded_only = models.BooleanField(default=False)
     published_by = models.ForeignKey(
         User,
@@ -754,10 +771,21 @@ class WidgetInstance(models.Model):
     # at least with the existing approach
     @property
     def qset(self):
-        try:
-            return self.qsets.latest("id")
-        except WidgetQset.DoesNotExist:
-            return WidgetQset({"version": None, "data": None})
+        if self._qset is None:
+            try:
+                self._qset = WidgetQset.objects.filter(instance=self).latest("created_at")
+            except WidgetQset.DoesNotExist:
+                self._qset = WidgetQset(version=None, data=None, instance=self)
+        return self._qset
+
+    @qset.setter
+    def qset(self, new_qset):
+        if type(new_qset) is WidgetQset:
+            self._qset = new_qset
+        elif type(new_qset) is dict:
+            self._qset = WidgetQset(version=new_qset["version"], data=new_qset["data"], instance=self)
+        else:
+            logger.error(f"Invalid qset type passed into setter: {type(new_qset)}")
 
 
     def get_qset(self,instance_id,timestamp=None):
@@ -771,7 +799,7 @@ class WidgetInstance(models.Model):
     def playable_by_current_user(self):
         return self.guest_access  # TODO: || ServiceUser::verify_session();
 
-    def db_store(self):
+    def save(self, *args, **kwargs):
         # check for requirements
         # TODO: this requires a user check, revisit later
         # if not self.is_draft and not self.widget.publishable_by(user):
@@ -797,7 +825,8 @@ class WidgetInstance(models.Model):
                     hash = WidgetInstanceHash.generate_key_hash()
                     self.id = hash
                     self.created_at = make_aware(datetime.now())
-                    self.save()
+                    super().save(*args, **kwargs)
+                    self.qset.save()
                     success = True
                 # TODO: use a more specific exception
                 except Exception as e:
@@ -817,7 +846,10 @@ class WidgetInstance(models.Model):
 
             self.published_by = new_publisher
             self.updated_at = make_aware(datetime.now())
-            self.save()
+            super().save(*args, **kwargs)
+            self.qset.save()
+            # ^ If qset is a whole new object, it'll be saved as a new object.
+            #   Otherwise, it'll just save the current qset.
 
             # TODO: originally this was meant to check if the number of rows affected by the 'update' query
             # is greater than zero - may make more sense to try/except this to check for failures?
@@ -872,6 +904,7 @@ class WidgetQset(SerializableModel):
         elif "data" in kwargs:  # Initializing new instance from Python
             self._data_dict = kwargs["data"]
 
+        # self.db_store()
 
     id = models.BigAutoField(primary_key=True)
     instance = models.ForeignKey(
@@ -881,12 +914,13 @@ class WidgetQset(SerializableModel):
         db_column="inst_id",
     )
     created_at = models.DateTimeField(default=datetime.now)
-    # data = models.TextField()
     _data = models.TextField(db_column="data")
     version = models.CharField(max_length=10, blank=True, null=True)
+    questions = models.ManyToManyField("core.Question", related_name="qsets", blank=True)
+
 
     # maybe can I can have a field of questions for easier access
-    questions = []
+    # questions = []
 
     @property
     def data(self):
@@ -917,6 +951,10 @@ class WidgetQset(SerializableModel):
 
 
     def save(self, *args, **kwargs):
+            if not self.pk and self.data:
+                # Only call db_store if it's a new object and has data
+                self.db_store()
+
             self._data = self._encode_data()
             self.created_at = make_aware(datetime.now())
             super().save(*args, **kwargs)
@@ -956,7 +994,7 @@ class WidgetQset(SerializableModel):
                 # check if we processed already
                 # question_text = data.get("text", "NO QUESTION TEXT")
                 old_id = data.get("id", "NULL")
-                if old_id and old_id in seen_ids:
+                if old_id and old_id in seen:
                     print("Skipping duplicate question:", old_id)
                     return
 
@@ -966,7 +1004,7 @@ class WidgetQset(SerializableModel):
                 data["id"] = new_id
                 print(f" Old ID: {old_id} -> New ID should be less than 32: {new_id}\n")
                 questions.append(data)
-                print(f"questions list so far: {questions}")
+                # print(f"questions list so far: {questions}")
 
             for item in data.values():
                 WidgetQset.dfs_traversal(item, questions,seen)
@@ -980,7 +1018,7 @@ class WidgetQset(SerializableModel):
         print("Does this run")
         question_objects = []
         for q_data in new_questions:
-            print(f"question data is: {q_data}")
+            # print(f"question data is: {q_data}")
             question_obj = Question.objects.create(
                 type=q_data.get("type", "Unknown"),
                 text=q_data["questions"][0]["text"] if q_data.get("questions") else "No Text",
@@ -988,16 +1026,21 @@ class WidgetQset(SerializableModel):
                 created_at=datetime.now(),
             )
             question_objects.append(question_obj)
-            print(f"question objects so far: {question_objects}")
+            # print(f"question objects so far: {question_objects}")
 
-        self.questions.set(question_objects)
         self.save()
+        self.questions.set(question_objects)
         print("It does")
 
 
     def get_questions(self):
-        print(f"questions: {self.questions}")
-        return self.questions
+        # print(f"questions: {self.questions}")
+        # return self.questions
+        # return list(self.questions.values())
+        print(f"self.questions: {self.questions}")
+        qs = self.questions.all()
+        print(f"questions count is: {qs}")
+        return list(qs.values())
 
     def as_dict(self):
         """Return a JSON-serializable dictionary."""
@@ -1010,6 +1053,23 @@ class WidgetQset(SerializableModel):
         }
         return json_qset
 
+
+    def _decode_data(self) -> dict:
+        result = str(self._data)  # Might be loaded as a bytes object, not str
+        # TODO determine if we need to conditionally check for b'...' wrapper around qset data blob
+        # Remove the b' ... ' that appears when stringifying the bytes object
+        if result.startswith("b'") and result.endswith("'"):
+            result = result[2:-1]
+
+        if result:  # Make sure it's not an empty string or some other falsy object
+            decoded_qset_data = base64.b64decode(result).decode("utf-8")
+            result = json.loads(decoded_qset_data)
+        else:
+            result = {}
+        return result
+
+    def _encode_data(self) -> str:
+        return base64.b64encode(json.dumps(self.data).encode("utf-8")).decode("utf-8")
 
     class Meta:
         db_table = "widget_qset"

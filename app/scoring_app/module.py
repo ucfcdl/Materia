@@ -100,12 +100,12 @@ class ScoreModule(ABC):
         print(f"\n=== Processing Logs: Found {len(self.logs)} logs in {self.__class__.__name__} ===\n")
 
         if len(self.logs) == 0:
-            print("⚠️ No logs found! No questions were answered.")
+            print("No logs found! No questions were answered.")
             return
 
         for log in self.logs:
             log_type = log.log_type if hasattr(log, "log_type") else log["type"]
-            print(f"📝 Processing log of type: {log_type}")
+            print(f" Processing log of type: {log_type}")
 
             if log_type in ["widget_end", "WIDGET_END"]:
                 self.finished = True
@@ -193,7 +193,7 @@ class ScoreModule(ABC):
     def load_questions(self, timestamp=False) -> None:
         """Loads questions associated with the widget instance"""
         if not self.instance.qset.data:
-            print("⚠️ No qset data found, fetching it now...")
+            print("No qset data found, fetching it now...")
             self.instance.get_qset(self.instance.id, timestamp)
 
         if self.instance.qset.data:

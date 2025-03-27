@@ -24,7 +24,7 @@ from core.views import login as login_views
 from core.views.scores import ScoresView
 from core.views.widget import *
 
-from django.urls import include, path
+from django.urls import include, path, re_path
 from api.views.users import UsersApi
 from django.contrib import admin
 
@@ -36,17 +36,27 @@ urlpatterns = [
     path("widgets/", CatalogView.index, name="widget catalog"),
     path("widgets/<slug:widget_slug>/", WidgetDetailView.as_view(), name="widget detail"),
     path("widgets/<slug:widget_slug>/demo", WidgetDemoView.as_view(), name="widget demo"),
+    re_path(r"^widgets/(?P<widget_slug>[\w-]+)/(?P<guide_type>(creators|players))-guide/$", WidgetGuideView.as_view(),
+            name="widget guide view"),
     path("play/<slug:widget_instance_id>/", WidgetPlayView.as_view(), name="widget play"),
     path("play/<slug:widget_instance_id>/<str:instance_name>/", WidgetPlayView.as_view(), name="widget play"),
 
+    # Creator
+    path("widgets/<slug:widget_slug>/create/", WidgetCreatorView.as_view(), name="widget creator"),
+    path("widgets/<slug:widget_slug>/create/<str:instance_id>", WidgetCreatorView.as_view(),
+         name="widget creator existing instance"),
+    path("preview/<slug:widget_instance_id>/", WidgetPreviewView.as_view(), name="widget preview"),
+
     # Scores
+    path("scores/preview/<slug:widget_instance_id>/", ScoresView.as_view(is_preview=True), name="preview scores"),
     path("scores/<slug:widget_instance_id>/<slug:play_id>/", ScoresView.as_view(), name="scores"),
 
-    # API
-    path("api/json/", include("api.urls.json")),
+    # API (TODO: improve API routing, retire api/json)
+    path("api/", include("api.urls.api_urls")),
     path("api/user/activity", UsersApi.activity),
     path("profile/", profile_views.profile, name="profile"),
     path("settings/", profile_views.settings, name="settings"),
+	path("users/login", login_views.login, name="login"),
     path("login/", login_views.login, name="login"),
     path("admin/", admin.site.urls),
     path("users/logout/", UsersApi.logout, name="logout"),

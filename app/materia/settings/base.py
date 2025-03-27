@@ -3,18 +3,15 @@
 import os
 from pathlib import Path
 
-from .css import *
-from .js import *
-from .urls import *
-
 # import additional config files
 from .widgets import *
+from .urls import *
+from .css import *
+from .js import *
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-APP_PATH = (
-    Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).resolve().parent
-)
+APP_PATH = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).resolve().parent
 
 DIRS = {
     "media": os.path.realpath(os.path.join(APP_PATH, "media")),  # + os.sep,
@@ -158,8 +155,17 @@ LOGGING = {
 
 SEMESTERS = [
     {
-        "spring": {"month": 1, "day": 1},
-        "summer": {"month": 5, "day": 3},
-        "fall": {"month": 8, "day": 7},
+        "spring": {
+            "month": 1,
+            "day": 1
+        },
+        "summer": {
+            "month": 5,
+            "day": 3
+        },
+        "fall": {
+            "month": 8,
+            "day": 7
+        }
     }
 ]

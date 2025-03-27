@@ -40,8 +40,8 @@ class SessionPlay:
                 self.data.score = 0
                 self.data.percent = 0
                 self.data.elapsed = 0
-                self.data.context_id = ""
-                self.data.semester = DateRange.objects.get(pk=5)  # TODO
+                self.data.context_id = ''
+                self.data.semester = DateRange.objects.first()  # TODO make it grab the current semester
                 self.is_preview = True
 
         # self.id: str | None = None
@@ -198,32 +198,12 @@ class SessionPlay:
             from core.models import Log
 
             return Log.objects.filter(play_id=self.data.id).order_by("game_time")
+    # Util function for getting the SessionPlay for that play_Id and running its validate function.
+    @staticmethod
+    def validate_by_play_id(play_id: str) -> bool:
+        session_play = SessionPlay.get_or_none(play_id)
+        if not session_play:
+            return False
 
-    # def create_log_play(self, id: str):
-    # log_play = LogPlay(
-    #     id=id,
-    #     instance=self.instance,
-    #     created_at=self.created_at,
-    #     elapsed=0,
-    #     user=self.user,
-    #     is_valid='1',  # TODO use booleans?
-    #     is_complete=False,
-    #     ip='',  # TODO
-    #     qset=self.qset,
-    #     environment_data='',  # TODO
-    #     auth=self.auth,
-    #     referrer_url=self.referrer_url,
-    #     context_id=self.context_id,
-    #     semester=self.semester,
-    #     score=0.0, # TODO: look into these 3
-    #     score_possible=0,
-    #     percent=0,
-    # )
+        return session_play.validate()
 
-    # try:
-    #     log_play.save()
-    #     return True
-    # except Exception as e:
-    #     # TODO logging
-    #     print(e)
-    #     return False
