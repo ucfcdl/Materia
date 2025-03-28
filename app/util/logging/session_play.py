@@ -66,7 +66,8 @@ class SessionPlay:
         # TODO: if inst_id is not valid hash, return None (do we need this?)
 
         self.data.created_at = make_aware(datetime.now())
-        self.data.user = None if instance.guest_access else None  # TODO
+        # TODO this feels flimsy, can we be assured the user reference will be valid?
+        self.data.user = None if instance.guest_access else User.objects.get(pk=user_id)
         self.data.instance = instance
         self.data.context_id = context_id
         self.data.is_preview = is_preview
@@ -146,8 +147,8 @@ class SessionPlay:
         # TODO Event::trigger('score_updated', ... see php
 
     # Ensures that this session play is playable by the current user and updated time elapsed
-    def validate(self) -> bool:
-        if self.data.instance.playable_by_current_user():
+    def validate(self, request: HttpRequest) -> bool:
+        if self.data.instance.playable_by_current_user(request.user):
             if self.data.is_valid:
                 self.update_elapsed()
                 return True
@@ -206,4 +207,3 @@ class SessionPlay:
             return False
 
         return session_play.validate()
-

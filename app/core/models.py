@@ -13,16 +13,17 @@ import uuid
 from datetime import datetime
 
 from django.contrib.auth.models import User
-from django.core import serializers
 from django.db import models, transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.timezone import make_aware
 from django.utils.translation import gettext_lazy
+from util.perm_manager import PermManager
 from util.serialization import SerializableModel
 from util.widget.validator import ValidatorUtil
 
 logger = logging.getLogger("django")
+# from pprint import pformat
 
 
 class Asset(models.Model):
@@ -62,8 +63,8 @@ class Asset(models.Model):
         from util.widget.validator import ValidatorUtil
 
         return (
-                ValidatorUtil.is_valid_hash(self.id)
-                and self.file_type in Asset.MIME_TYPE_FROM_EXTENSION.keys()
+            ValidatorUtil.is_valid_hash(self.id)
+            and self.file_type in Asset.MIME_TYPE_FROM_EXTENSION.keys()
         )
 
     # Get the materia asset type based on the mime type
@@ -139,7 +140,7 @@ class Asset(models.Model):
                 except AssetData.DoesNotExist:
                     pass
                 for perm in PermObjectToUser.objects.filter(
-                        object_id=self.id, object_type=PermObjectToUser.ObjectType.ASSET
+                    object_id=self.id, object_type=PermObjectToUser.ObjectType.ASSET
                 ):
                     perm.delete()
             self = Asset()
@@ -583,7 +584,9 @@ class Question(models.Model):
     hash = models.CharField(unique=True, max_length=32)
     qset = models.ManyToManyField(
         # Question model already has questions related name
-        "WidgetQset", through=MapQuestionToQset, related_name="widget_questions"
+        "WidgetQset",
+        through=MapQuestionToQset,
+        related_name="widget_questions",
     )
 
     class Meta:
@@ -676,11 +679,10 @@ class Widget(SerializableModel):
         self.meta_data = meta_final
         return self.meta_data
 
-    def publishable_by(self, user_id: int) -> bool:
+    def publishable_by(self, user: User) -> bool:
         if not self.restrict_publish:
             return True
-        return True  # TODO: return ! Perm_Manager::is_student($user_id);
-
+        return not PermManager.user_is_student(user)
 
     @staticmethod
     def make_clean_name(name):
@@ -726,10 +728,6 @@ class Widget(SerializableModel):
 
 
 class WidgetInstance(SerializableModel):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._qset = None
-
     id = models.CharField(primary_key=True, max_length=10, db_collation="utf8_bin")
     widget = models.ForeignKey(
         "Widget",
@@ -767,37 +765,29 @@ class WidgetInstance(SerializableModel):
         db_column="published_by",
     )
 
-    # TODO: re-evaluate this - it makes widget instance creation kind of inconvenient
-    # at least with the existing approach
-    @property
-    def qset(self):
-        if self._qset is None:
-            try:
-                self._qset = WidgetQset.objects.filter(instance=self).latest("created_at")
-            except WidgetQset.DoesNotExist:
-                self._qset = WidgetQset(version=None, data=None, instance=self)
-        return self._qset
+    def create_qset(self, data, version=None):
+        qset = WidgetQset(
+            instance=self,
+            data=data,
+            version=version or 1,
+        )
+        qset.save()
 
-    @qset.setter
-    def qset(self, new_qset):
-        if type(new_qset) is WidgetQset:
-            self._qset = new_qset
-        elif type(new_qset) is dict:
-            self._qset = WidgetQset(version=new_qset["version"], data=new_qset["data"], instance=self)
-        else:
-            logger.error(f"Invalid qset type passed into setter: {type(new_qset)}")
+    def get_latest_qset(self):
+        return self.qsets.order_by("-created_at").first()
 
+    def get_qset_for_play(self, play_id=None):
+        if play_id:
+            play = LogPlay.objects.get(id=play_id)
+            return (
+                self.qsets.filter(created_at__lte=play.created_at)
+                .order_by("-created_at")
+                .first()
+            )
+        return self.get_latest_qset()
 
-    def get_qset(self,instance_id,timestamp=None):
-        try:
-            if timestamp:
-                return self.qsets.filter(created_at__lte=timestamp).latest("id")
-            return self.qsets.latest("id")
-        except WidgetQset.DoesNotExist:
-            return WidgetQset({"version": None, "data": None})
-
-    def playable_by_current_user(self):
-        return self.guest_access  # TODO: || ServiceUser::verify_session();
+    def playable_by_current_user(self, user: User):
+        return self.widget.is_playable and (user.is_authenticated or self.guest_access)
 
     def save(self, *args, **kwargs):
         # check for requirements
@@ -826,7 +816,7 @@ class WidgetInstance(SerializableModel):
                     self.id = hash
                     self.created_at = make_aware(datetime.now())
                     super().save(*args, **kwargs)
-                    self.qset.save()
+                    # self.qset.save()
                     success = True
                 # TODO: use a more specific exception
                 except Exception as e:
@@ -847,7 +837,8 @@ class WidgetInstance(SerializableModel):
             self.published_by = new_publisher
             self.updated_at = make_aware(datetime.now())
             super().save(*args, **kwargs)
-            self.qset.save()
+            # self.qset.save()
+
             # ^ If qset is a whole new object, it'll be saved as a new object.
             #   Otherwise, it'll just save the current qset.
 
@@ -914,10 +905,11 @@ class WidgetQset(SerializableModel):
         db_column="inst_id",
     )
     created_at = models.DateTimeField(default=datetime.now)
-    _data = models.TextField(db_column="data")
+    data = models.TextField(db_column="data")
     version = models.CharField(max_length=10, blank=True, null=True)
-    questions = models.ManyToManyField("core.Question", related_name="qsets", blank=True)
-
+    questions = models.ManyToManyField(
+        "core.Question", related_name="qsets", blank=True
+    )
 
     # maybe can I can have a field of questions for easier access
     # questions = []
@@ -929,130 +921,158 @@ class WidgetQset(SerializableModel):
             self._data_dict = self._decode_data()
         return self._data_dict
 
-
     @data.setter
     def data(self, new_data):
         self._data_dict = new_data
 
-
     def _decode_data(self):
         try:
-            return json.loads(base64.b64decode(self._data).decode("utf-8")) if self._data else {}
+            return (
+                json.loads(base64.b64decode(self._data).decode("utf-8"))
+                if self._data
+                else {}
+            )
         except Exception as e:
             logger.error(f"Error decoding Qset data: {e}")
             return {}
 
     def _encode_data(self):
         try:
-            return base64.b64encode(json.dumps(self._data_dict).encode("utf-8")).decode("utf-8") if self._data_dict else ""
+            return (
+                base64.b64encode(json.dumps(self._data_dict).encode("utf-8")).decode(
+                    "utf-8"
+                )
+                if self._data_dict
+                else ""
+            )
         except Exception as e:
             logger.error(f"Error encoding Qset data: {e}")
             return ""
 
-
     def save(self, *args, **kwargs):
-            if not self.pk and self.data:
-                # Only call db_store if it's a new object and has data
-                self.db_store()
+        if not self.pk and self.data:
+            # Only call db_store if it's a new object and has data
+            self.db_store()
 
-            self._data = self._encode_data()
-            self.created_at = make_aware(datetime.now())
-            super().save(*args, **kwargs)
+        self._data = self._encode_data()
+        self.created_at = make_aware(datetime.now())
+        super().save(*args, **kwargs)
 
-
-    def db_store(self):
-        """store and set question ids in databse"""
+    #     def db_store(self):
+    #         """store and set question ids in databse"""
+    #         try:
+    #             if not self.data:
+    #                 logger.warning("No data in Qset, skipping save.")
+    #                 return False
+    #
+    #             save_data = self.data
+    #             if isinstance(save_data, str):
+    #                 save_data = json.loads(save_data)
+    #
+    #             self.version = self.version if self.version else "0"
+    #             self.created_at = make_aware(datetime.now())
+    #             #set the question ids and also save the list of questions
+    #             self.set_qset_question_ids(save_data["items"])
+    #             #encode the processed data
+    #             self.data = save_data
+    #             self.save()
+    #             return True
+    #         except Exception as e:
+    #             logger.error(f"Could not save Qset: {e}")
+    #             return False
+    #
+    #     @staticmethod
+    #     def dfs_traversal(data, questions, seen):
+    #         if isinstance(data, list):
+    #             for item in data:
+    #                 WidgetQset.dfs_traversal(item, questions,seen)
+    #         elif isinstance(data, dict):
+    #             if data.get("materiaType") == "question":
+    #                 print("\n Found Question:", data.get("text", "NO QUESTION TEXT"), "with answer of ", data.get("answers", "NO ANSWER"))
+    #                 # check if we processed already
+    #                 # question_text = data.get("text", "NO QUESTION TEXT")
+    #                 old_id = data.get("id", "NULL")
+    #                 if old_id and old_id in seen:
+    #                     print("Skipping duplicate question:", old_id)
+    #                     return
+    #
+    #                 new_id = str(uuid.uuid4())
+    #                 #to make it 32 chars instead of 36 so it fits
+    #                 new_id = new_id.replace("-", "")
+    #                 data["id"] = new_id
+    #                 print(f" Old ID: {old_id} -> New ID should be less than 32: {new_id}\n")
+    #                 questions.append(data)
+    #                 # print(f"questions list so far: {questions}")
+    #
+    #             for item in data.values():
+    #                 WidgetQset.dfs_traversal(item, questions,seen)
+    #
+    #
+    #     def set_qset_question_ids(self,qset):
+    #         self.questions.clear()
+    #         new_questions = []
+    #         seen = set()
+    #         WidgetQset.dfs_traversal(qset, new_questions, seen)
+    #         print("Does this run")
+    #         question_objects = []
+    #         for q_data in new_questions:
+    #             # print(f"question data is: {q_data}")
+    #             question_obj = Question.objects.create(
+    #                 type=q_data.get("type", "Unknown"),
+    #                 text=q_data["questions"][0]["text"] if q_data.get("questions") else "No Text",
+    #                 hash=q_data["id"],
+    #                 created_at=datetime.now(),
+    #             )
+    #             question_objects.append(question_obj)
+    #             # print(f"question objects so far: {question_objects}")
+    #
+    #         self.save()
+    #         self.questions.set(question_objects)
+    #         print("It does")
+    #
+    #
+    #     def get_questions(self):
+    #         # print(f"questions: {self.questions}")
+    #         # return self.questions
+    #         # return list(self.questions.values())
+    #         print(f"self.questions: {self.questions}")
+    #         qs = self.questions.all()
+    #         print(f"questions count is: {qs}")
+    #         return list(qs.values())
+    #
+    #     def as_dict(self):
+    #         """Return a JSON-serializable dictionary."""
+    #         json_qset = {
+    #             "id": self.id,
+    #             "instance": self.instance.id,
+    #             "created_at": self.created_at.isoformat(),
+    #             "version": self.version,
+    #             "data": self.data,
+    #         }
+    #         return json_qset
+    @classmethod
+    def decode_data(cls, encoded_data):
         try:
-            if not self.data:
-                logger.warning("No data in Qset, skipping save.")
-                return False
-
-            save_data = self.data
-            if isinstance(save_data, str):
-                save_data = json.loads(save_data)
-
-            self.version = self.version if self.version else "0"
-            self.created_at = make_aware(datetime.now())
-            #set the question ids and also save the list of questions
-            self.set_qset_question_ids(save_data["items"])
-            #encode the processed data
-            self.data = save_data
-            self.save()
-            return True
+            decoded_bytes = base64.b64decode(encoded_data)
+            return json.loads(decoded_bytes.decode("utf-8"))
         except Exception as e:
-            logger.error(f"Could not save Qset: {e}")
-            return False
+            logger.error(f"Error decoding JSON: {str(e)}")
+            return {}
 
-    @staticmethod
-    def dfs_traversal(data, questions, seen):
-        if isinstance(data, list):
-            for item in data:
-                WidgetQset.dfs_traversal(item, questions,seen)
-        elif isinstance(data, dict):
-            if data.get("materiaType") == "question":
-                print("\n Found Question:", data.get("text", "NO QUESTION TEXT"), "with answer of ", data.get("answers", "NO ANSWER"))
-                # check if we processed already
-                # question_text = data.get("text", "NO QUESTION TEXT")
-                old_id = data.get("id", "NULL")
-                if old_id and old_id in seen:
-                    print("Skipping duplicate question:", old_id)
-                    return
+    @classmethod
+    def encode_data(cls, decoded_data):
+        json_str = json.dumps(decoded_data)
+        return base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
 
-                new_id = str(uuid.uuid4())
-                #to make it 32 chars instead of 36 so it fits
-                new_id = new_id.replace("-", "")
-                data["id"] = new_id
-                print(f" Old ID: {old_id} -> New ID should be less than 32: {new_id}\n")
-                questions.append(data)
-                # print(f"questions list so far: {questions}")
+    def get_data(self):
+        return self.decode_data(self.data)
 
-            for item in data.values():
-                WidgetQset.dfs_traversal(item, questions,seen)
+    def set_data(self, data_dict):
+        self.data = self.encode_data(data_dict)
 
-
-    def set_qset_question_ids(self,qset):
-        self.questions.clear()
-        new_questions = []
-        seen = set()
-        WidgetQset.dfs_traversal(qset, new_questions, seen)
-        print("Does this run")
-        question_objects = []
-        for q_data in new_questions:
-            # print(f"question data is: {q_data}")
-            question_obj = Question.objects.create(
-                type=q_data.get("type", "Unknown"),
-                text=q_data["questions"][0]["text"] if q_data.get("questions") else "No Text",
-                hash=q_data["id"],
-                created_at=datetime.now(),
-            )
-            question_objects.append(question_obj)
-            # print(f"question objects so far: {question_objects}")
-
-        self.save()
-        self.questions.set(question_objects)
-        print("It does")
-
-
-    def get_questions(self):
-        # print(f"questions: {self.questions}")
-        # return self.questions
-        # return list(self.questions.values())
-        print(f"self.questions: {self.questions}")
-        qs = self.questions.all()
-        print(f"questions count is: {qs}")
-        return list(qs.values())
-
-    def as_dict(self):
-        """Return a JSON-serializable dictionary."""
-        json_qset = {
-            "id": self.id,
-            "instance": self.instance.id,
-            "created_at": self.created_at.isoformat(),
-            "version": self.version,
-            "data": self.data,
-        }
-        return json_qset
-
+    # TODO: removed save() method because it became redundant with the updated handling of the data field
+    # save() also included logic to save individual questions,
+    # but we are currently mulling the idea of removing the question model completely
 
     def _decode_data(self) -> dict:
         result = str(self._data)  # Might be loaded as a bytes object, not str
@@ -1071,6 +1091,23 @@ class WidgetQset(SerializableModel):
     def _encode_data(self) -> str:
         return base64.b64encode(json.dumps(self.data).encode("utf-8")).decode("utf-8")
 
+    # def _decode_data(self) -> dict:
+    #     result = str(self._data)  # Might be loaded as a bytes object, not str
+    #     # TODO determine if we need to conditionally check for b'...' wrapper around qset data blob
+    #     # Remove the b' ... ' that appears when stringifying the bytes object
+    #     if result.startswith("b'") and result.endswith("'"):
+    #         result = result[2:-1]
+
+    #     if result:  # Make sure it's not an empty string or some other falsy object
+    #         decoded_qset_data = base64.b64decode(result).decode("utf-8")
+    #         result = json.loads(decoded_qset_data)
+    #     else:
+    #         result = {}
+    #     return result
+
+    # def _encode_data(self) -> str:
+    #     return base64.b64encode(json.dumps(self.data).encode("utf-8")).decode("utf-8")
+
     class Meta:
         db_table = "widget_qset"
         indexes = [
@@ -1078,19 +1115,19 @@ class WidgetQset(SerializableModel):
         ]
 
 
-
 class UserSettings(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile_settings")
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="profile_settings"
+    )
     profile_fields = models.JSONField(default=dict)
-
 
     def set_profile_fields(self, key, value):
         self.profile_fields[key] = value
         self.save()
 
-
     def get_profile_fields(self):
         return self.profile_fields
+
 
 @receiver(post_save, sender=User)
 def create_user_settings(sender, instance, created, **kwargs):

@@ -1,8 +1,7 @@
-from django.http import HttpResponseNotFound, HttpResponseForbidden
-from django.conf import settings
-from django.views.generic import TemplateView
-
 from core.models import WidgetInstance
+from django.conf import settings
+from django.http import HttpResponseForbidden, HttpResponseNotFound
+from django.views.generic import TemplateView
 
 
 class ScoresView(TemplateView):
@@ -20,7 +19,7 @@ class ScoresView(TemplateView):
             return HttpResponseNotFound()  # TODO must return context
 
         # Verify user is able to play this widget
-        if not instance.playable_by_current_user():
+        if not instance.playable_by_current_user(self.request.user):
             # TODO:
             # Session::set_flash('notice', 'Please log in to view your scores.');
             # Response::redirect(Router::get('login').'?redirect='.urlencode(URI::current()));
@@ -44,6 +43,5 @@ class ScoresView(TemplateView):
             "title": "Score Results",
             "js_resources": settings.JS_GROUPS["scores"],
             "css_resources": settings.CSS_GROUPS["scores"],
-            "fonts": settings.FONTS_DEFAULT,
             "js_global_variables": js_globals
         }
