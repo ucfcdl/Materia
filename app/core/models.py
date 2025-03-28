@@ -905,7 +905,8 @@ class WidgetQset(SerializableModel):
         db_column="inst_id",
     )
     created_at = models.DateTimeField(default=datetime.now)
-    data = models.TextField(db_column="data")
+    data_raw = models.TextField(db_column="data", default="")
+
     version = models.CharField(max_length=10, blank=True, null=True)
     questions = models.ManyToManyField(
         "core.Question", related_name="qsets", blank=True
@@ -928,8 +929,8 @@ class WidgetQset(SerializableModel):
     def _decode_data(self):
         try:
             return (
-                json.loads(base64.b64decode(self._data).decode("utf-8"))
-                if self._data
+                json.loads(base64.b64decode(self.data_raw).decode("utf-8"))
+                if self.data_raw
                 else {}
             )
         except Exception as e:
@@ -950,11 +951,11 @@ class WidgetQset(SerializableModel):
             return ""
 
     def save(self, *args, **kwargs):
-        if not self.pk and self.data:
-            # Only call db_store if it's a new object and has data
-            self.db_store()
+        # if not self.pk and self.data:
+        #     # Only call db_store if it's a new object and has data
+        #     self.db_store()
 
-        self._data = self._encode_data()
+        self.data_raw = self._encode_data()
         self.created_at = make_aware(datetime.now())
         super().save(*args, **kwargs)
 
@@ -1065,17 +1066,17 @@ class WidgetQset(SerializableModel):
         return base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
 
     def get_data(self):
-        return self.decode_data(self.data)
+        return self.decode_data(self.data_raw)
 
     def set_data(self, data_dict):
-        self.data = self.encode_data(data_dict)
+        self.data_raw = self.encode_data(data_dict)
 
     # TODO: removed save() method because it became redundant with the updated handling of the data field
     # save() also included logic to save individual questions,
     # but we are currently mulling the idea of removing the question model completely
 
     def _decode_data(self) -> dict:
-        result = str(self._data)  # Might be loaded as a bytes object, not str
+        result = str(self.data_raw)  # Might be loaded as a bytes object, not str
         # TODO determine if we need to conditionally check for b'...' wrapper around qset data blob
         # Remove the b' ... ' that appears when stringifying the bytes object
         if result.startswith("b'") and result.endswith("'"):
@@ -1089,7 +1090,9 @@ class WidgetQset(SerializableModel):
         return result
 
     def _encode_data(self) -> str:
-        return base64.b64encode(json.dumps(self.data).encode("utf-8")).decode("utf-8")
+        return base64.b64encode(json.dumps(self.data_raw).encode("utf-8")).decode(
+            "utf-8"
+        )
 
     # def _decode_data(self) -> dict:
     #     result = str(self._data)  # Might be loaded as a bytes object, not str

@@ -6,6 +6,9 @@ from core.models import DateRange, LogPlay, WidgetInstance
 from django.utils.timezone import make_aware
 from scoring_app.manager import ScoringUtil
 from util.widget.validator import ValidatorUtil
+from django.http import HttpRequest, HttpResponse
+
+
 
 # This class should be how the app interacts with play sessions. It's capable of both real play sessions and preview
 # play sessions, and contains to a few util functions to help. All play session data is stored under self.data.
