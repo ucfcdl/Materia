@@ -3,12 +3,10 @@ from datetime import datetime
 from typing import Self
 
 from core.models import DateRange, LogPlay, WidgetInstance
+from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import make_aware
 from scoring_app.manager import ScoringUtil
 from util.widget.validator import ValidatorUtil
-from django.http import HttpRequest, HttpResponse
-
-
 
 # This class should be how the app interacts with play sessions. It's capable of both real play sessions and preview
 # play sessions, and contains to a few util functions to help. All play session data is stored under self.data.
@@ -43,8 +41,10 @@ class SessionPlay:
                 self.data.score = 0
                 self.data.percent = 0
                 self.data.elapsed = 0
-                self.data.context_id = ''
-                self.data.semester = DateRange.objects.first()  # TODO make it grab the current semester
+                self.data.context_id = ""
+                self.data.semester = (
+                    DateRange.objects.first()
+                )  # TODO make it grab the current semester
                 self.is_preview = True
 
         # self.id: str | None = None
@@ -74,7 +74,25 @@ class SessionPlay:
         self.data.instance = instance
         self.data.context_id = context_id
         self.data.is_preview = is_preview
-        self.data.qset = instance.qset
+        print("====================")
+        print("====================")
+        print("====================")
+        print("DEBUG")
+        print("DEBUG")
+        print("DEBUG")
+        print("====================")
+        print("====================")
+        print(instance.qsets)
+        print("DEBUG")
+        print("DEBUG")
+        print("====================")
+        print("====================")
+        print("====================")
+        print("====================")
+        print("====================")
+        # self.data.qset = instance.qset
+        # self.data.qset = instance.get_qset_for_play()
+        self.data.qset = instance.get_latest_qset()
         self.data.environment_data = ""
 
         self.data.auth = ""  # TODO
@@ -202,6 +220,7 @@ class SessionPlay:
             from core.models import Log
 
             return Log.objects.filter(play_id=self.data.id).order_by("game_time")
+
     # Util function for getting the SessionPlay for that play_Id and running its validate function.
     @staticmethod
     def validate_by_play_id(play_id: str) -> bool:

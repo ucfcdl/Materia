@@ -1057,7 +1057,7 @@ class WidgetQset(SerializableModel):
             decoded_bytes = base64.b64decode(encoded_data)
             return json.loads(decoded_bytes.decode("utf-8"))
         except Exception as e:
-            logger.error(f"Error decoding JSON: {str(e)}")
+            logger.error(f"Error decoding JSON over here!: {str(e)}")
             return {}
 
     @classmethod

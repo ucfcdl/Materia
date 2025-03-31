@@ -123,10 +123,37 @@ class Base64JSONField(serializers.Field):
     def to_representation(self, value):
         # Decode base64, then decode JSON
         try:
+            print("DECODING JSON STARTING HERE")
+            print("DECODING JSON STARTING HERE")
+            print("DECODING JSON STARTING HERE")
+            # print(f" value: {value}")
+            # print(f" type: {type(value)}")
+            # print(f"decoded bytes: {base64.b64decode(value)}")
+            print("DECODING JSON STARTING HERE")
+            print("DECODING JSON STARTING HERE")
+            print("DECODING JSON STARTING HERE")
+            # if(value.type == "dict")
+            # TODO CHRIS: fix why its not a byte and a dict but whatever
+            if isinstance(value, dict):
+                print("value is a dict")
+                print("value is a dict")
+                print("value is a dict")
+                print("value is a dict")
+                return value
+            else:
+                print("ITS NOT A DICT??????")
+                print("ITS NOT A DICT??????")
+                print("ITS NOT A DICT??????")
+                print("ITS NOT A DICT??????")
+                print("ITS NOT A DICT??????")
+
             decoded_bytes = base64.b64decode(value)
             return json.loads(decoded_bytes.decode("utf-8"))
         except Exception as e:
-            raise serializers.ValidationError(f"Error decoding JSON: {str(e)}")
+            print(
+                f" we cant return our dictionary for some reason to load it into json? our value is {value} "
+            )
+            raise serializers.ValidationError(f"Error decoding JSON in here: {str(e)}")
 
     def to_internal_value(self, data):
         json_str = json.dumps(data)
