@@ -129,22 +129,12 @@ class Base64JSONField(serializers.Field):
             # print(f" value: {value}")
             # print(f" type: {type(value)}")
             # print(f"decoded bytes: {base64.b64decode(value)}")
-            print("DECODING JSON STARTING HERE")
-            print("DECODING JSON STARTING HERE")
-            print("DECODING JSON STARTING HERE")
             # if(value.type == "dict")
             # TODO CHRIS: fix why its not a byte and a dict but whatever
             if isinstance(value, dict):
                 print("value is a dict")
-                print("value is a dict")
-                print("value is a dict")
-                print("value is a dict")
                 return value
             else:
-                print("ITS NOT A DICT??????")
-                print("ITS NOT A DICT??????")
-                print("ITS NOT A DICT??????")
-                print("ITS NOT A DICT??????")
                 print("ITS NOT A DICT??????")
 
             decoded_bytes = base64.b64decode(value)
@@ -177,7 +167,21 @@ class QuestionSetSerializer(serializers.ModelSerializer):
 
     # helper function to recursively apply uuids to blank ids
     def apply_ids_to_questions(self, qset):
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
+        print("WE ARE APPLYING IDS HERE YAY")
         import uuid
+
+        print(f"qset: {qset}")
 
         def _process_item(item):
 
@@ -207,6 +211,7 @@ class QuestionSetSerializer(serializers.ModelSerializer):
             # decode it, apply ids to the dict, then re-encode it
             decoded_data = WidgetQset.decode_data(validated_data["data"])
             decoded_data = self.apply_ids_to_questions(decoded_data)
+            print("decoded data is ", decoded_data)
             validated_data["data"] = WidgetQset.encode_data(decoded_data)
 
         return super().create(validated_data)
