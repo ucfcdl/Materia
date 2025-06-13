@@ -17,13 +17,13 @@ from core.models import (
     WidgetMetadata,
     WidgetQset,
 )
+from core.utils.roles import RolesUtil
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils.text import slugify
 from rest_framework import serializers
 from util.logging.session_logger import SessionLogger
-from util.perm_manager import PermManager
 
 logger = logging.getLogger("django")
 
@@ -42,7 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
     is_student = serializers.SerializerMethodField()
 
     def get_is_student(self, user):
-        return PermManager.user_is_student(user)
+        return RolesUtil.user_is_student(user)
 
     # remove sensitive information when requesting with non-privileged access
     def get_fields(self):
@@ -338,6 +338,18 @@ class WidgetInstanceSerializer(serializers.ModelSerializer):
             qset_serializer.save()
 
     def create(self, validated_data):
+        widget = validated_data["widget"]
+        is_draft = validated_data["is_draft"]
+
+        if is_draft and not widget.is_editable:
+            raise serializers.ValidationError(
+                "Non-editable widgets cannot be saved as drafts"
+            )
+
+        # Make sure user can publish this widget
+        if not is_draft and not widget.publishable_by(self.request.user):
+            raise serializers.ValidationError("You cannot publish this widget")
+
         # remove qset from data or WidgetInstance will complain the key is not present in the model (it isn't)
         qset = validated_data.pop("qset", None)
         widget_instance = super().create(validated_data)
@@ -345,6 +357,29 @@ class WidgetInstanceSerializer(serializers.ModelSerializer):
         return widget_instance
 
     def update(self, widget_instance, validated_data):
+        is_draft = validated_data.get("is_draft", widget_instance.is_draft)
+        # Check to see if this widget is editable
+        if is_draft and not widget_instance.widget.is_editable:
+            raise serializers.ValidationError(
+                "Non-editable widgets cannot be saved as drafts"
+            )
+
+        # Make sure user can publish this widget
+        if not is_draft and not widget_instance.widget.publishable_by(
+            self.request.user
+        ):
+            raise serializers.ValidationError("You cannot publish this widget")
+
+        guest_access = validated_data.get("guest_access", widget_instance.guest_access)
+
+        # Make sure student made widgets cannot leave guest access mode
+        if widget_instance.is_student_made:
+            if guest_access is not True:
+                raise serializers.ValidationError(
+                    "Student-made widgets must stay in guest access mode"
+                )
+            validated_data["attempts"] = -1
+
         qset = validated_data.pop("qset", None)
         widget_instance = super().update(widget_instance, validated_data)
         self._handle_qset(qset, widget_instance)

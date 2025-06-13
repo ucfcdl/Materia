@@ -1,13 +1,15 @@
 import re
 
+from core.permissions import CanCreateWidgetInstances
+from core.serializers import (
+    PromptGenerationRequestSerializer,
+    QsetGenerationRequestSerializer,
+)
+from core.utils.generator import GenerationUtil
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from core.permissions import CanCreateWidgetInstances
-from core.serializers import QsetGenerationRequestSerializer, PromptGenerationRequestSerializer
-from util.generator_util import GenerationUtil
-from util.message_util import MsgBuilder, Msg
+from util.message_util import Msg, MsgBuilder
 
 
 class GenerateQsetView(APIView):
@@ -17,7 +19,9 @@ class GenerateQsetView(APIView):
     def post(self, request):
         # Check if generation is available
         if not GenerationUtil.is_enabled():
-            return MsgBuilder.failure(msg="AI generation is not enabled on this instance of Materia").as_drf_response()
+            return MsgBuilder.failure(
+                msg="AI generation is not enabled on this instance of Materia"
+            ).as_drf_response()
 
         # Get request data
         request_serializer = QsetGenerationRequestSerializer(data=request.data)
@@ -30,12 +34,16 @@ class GenerateQsetView(APIView):
         topic = request_serializer.validated_data["topic"]
 
         # Verify widget instance is playable (only if a valid instance id is provided)
-        if widget_instance and not widget_instance.playable_by_current_user(request.user):
+        if widget_instance and not widget_instance.playable_by_current_user(
+            request.user
+        ):
             return MsgBuilder.no_login(request=request).as_drf_response()
 
         # Verify widget has generation enabled
         if not widget.is_generable:
-            return MsgBuilder.invalid_input(msg="Widget engine does not support generation").as_drf_response()
+            return MsgBuilder.invalid_input(
+                msg="Widget engine does not support generation"
+            ).as_drf_response()
 
         # Clean the topic of any special characters
         topic = re.sub(r"[^a-zA-Z0-9\s]", "", topic)
@@ -60,10 +68,12 @@ class GenerateQsetView(APIView):
             return result.as_drf_response()
 
         # Return generated qset
-        return Response({
-            **result,
-            "title": topic,
-        })
+        return Response(
+            {
+                **result,
+                "title": topic,
+            }
+        )
 
 
 class GenerateFromPromptView(APIView):
@@ -74,7 +84,9 @@ class GenerateFromPromptView(APIView):
     def post(self, request):
         # Check if generation is available
         if not GenerationUtil.is_enabled():
-            return MsgBuilder.failure(msg="AI generation is not enabled on this instance of Materia").as_drf_response()
+            return MsgBuilder.failure(
+                msg="AI generation is not enabled on this instance of Materia"
+            ).as_drf_response()
 
         # Get request data
         request_serializer = PromptGenerationRequestSerializer(data=request.data)
@@ -87,7 +99,9 @@ class GenerateFromPromptView(APIView):
         if type(result) is Msg:
             return result.as_drf_response()
         else:
-            return Response({
-                "success": True,
-                "response": result,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "response": result,
+                }
+            )

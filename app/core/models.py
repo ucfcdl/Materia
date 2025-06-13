@@ -14,11 +14,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Self
 
+from core.managers import ObjectPermissionManager
+from core.utils.roles import RolesUtil
 from django.conf import settings
-from django.contrib.auth.models import User, AnonymousUser
+from django.contrib.auth.models import AnonymousUser, User
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
-from django.db import models, transaction, DatabaseError
+from django.db import DatabaseError, models, transaction
 from django.db.models import QuerySet
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -28,7 +30,6 @@ from django.utils.text import slugify
 from django.utils.timezone import make_aware
 from django.utils.translation import gettext_lazy
 from util.message_util import Msg, MsgBuilder
-from util.perm_manager import PermManager
 from util.widget.asset.manager import AssetManager
 from util.widget.validator import ValidatorUtil
 
@@ -60,6 +61,8 @@ class ObjectPermission(models.Model):
             models.Index(fields=["content_type", "object_id"]),
             models.Index(fields=["user", "permission"]),
         ]
+
+    objects = ObjectPermissionManager()
 
 
 class Asset(models.Model):
@@ -116,13 +119,13 @@ class Asset(models.Model):
     # Finds an available asset ID to avoid database collisions
     @staticmethod
     def get_unused_id():
-        from util.widget.instance.hash import WidgetInstanceHash
+        from core.utils.hash import HashUtil
 
         asset_id = None
 
         # try 10 times to get an unused asset ID
         for i in range(10):
-            try_id = WidgetInstanceHash.generate_key_hash()
+            try_id = HashUtil.generate_key_hash()
             try:
                 Asset.objects.get(id=try_id)
                 continue
@@ -752,7 +755,7 @@ class Widget(models.Model):
     def publishable_by(self, user: User) -> bool:
         if not self.restrict_publish:
             return True
-        return not PermManager.user_is_student(user)
+        return not RolesUtil.user_is_student(user)
 
     @staticmethod
     def make_clean_name(name):
@@ -879,23 +882,29 @@ class WidgetInstance(models.Model):
         db_column="published_by",
     )
     permissions = GenericRelation(ObjectPermission)
+    # objects = WidgetInstanceManager()
 
     @property
     def dir(self):
         return f"{self.id}-{self.clean_name}{os.sep}"
 
     def status(self, context: str = None):
+        from core.utils.semester import SemesterUtil
         from util.scoring.scoring_util import ScoringUtil  # avoid cyclic import
-        from util.semester_util import SemesterUtil
+
         semester = SemesterUtil.get_current_semester()
 
         now = timezone.now()
         start = self.open_at
         end = self.close_at
-        attempts_used = ScoringUtil.get_instance_score_history(self, context, semester).count()
+        attempts_used = ScoringUtil.get_instance_score_history(
+            self, context, semester
+        ).count()
 
         # Check to see if any extra attempts have been provided to the user. Decrement attempts_used if so.
-        extra_attempts = ScoringUtil.get_instance_extra_attempts(self, context, semester)
+        extra_attempts = ScoringUtil.get_instance_extra_attempts(
+            self, context, semester
+        )
         attempts_used -= extra_attempts
 
         has_attempts = self.attempts == -1 or attempts_used < self.attempts
@@ -905,7 +914,9 @@ class WidgetInstance(models.Model):
         always_open = not does_open and not does_close
         will_open = does_open and start > now
         will_close = does_close and end > now
-        is_open = always_open or ((not does_open or start < now) and (will_close or not does_close))
+        is_open = always_open or (
+            (not does_open or start < now) and (will_close or not does_close)
+        )
         is_closed = not always_open and (does_close and end < now)
 
         return {
@@ -918,6 +929,35 @@ class WidgetInstance(models.Model):
             "always_open": always_open,
             "has_attempts": has_attempts,
         }
+
+    # Obtains a lock on a widget instance that will last for 2 minutes.
+    # Returns True if that lock is obtained by the user (or if they already have a lock on it)
+    # Returns False if another lock is already owned by someone else
+    def lock(self, user: User) -> bool:
+        from django.conf import settings
+        from django.core.cache import cache
+
+        instance_id = self.id
+        locked_by = cache.get(instance_id)
+
+        if locked_by is None:
+            locked_by = user.pk
+            cache.set(instance_id, locked_by, settings.LOCK_TIMEOUT)
+
+        return locked_by == user.pk
+
+    # Checks if the user has a lock on this instance (if there is one)
+    # Returns True if the user owns the lock, or if there is no lock on this instance
+    # Returns False if there is a lock and the user doesn't own it
+    def lock_available_to_user(self, user: User) -> bool:
+        from django.core.cache import cache
+
+        locked_by = cache.get(self.id)
+
+        if locked_by is None:
+            return True
+
+        return locked_by == user.pk
 
     def create_qset(self, data, version=None):
         qset = WidgetQset(
@@ -952,15 +992,18 @@ class WidgetInstance(models.Model):
 
         # ADDING A NEW INSTANCE
         if is_new:
-            from util.widget.instance.hash import WidgetInstanceHash
-            tries = 3  # try this many times to generate an instance ID to avoid collisions
+            from core.utils.hash import HashUtil
+
+            tries = (
+                3  # try this many times to generate an instance ID to avoid collisions
+            )
             while not success:
                 tries = tries - 1
                 if tries < 0:
                     raise Exception("Unable to save new widget instance")
                 self.published_by = None if self.is_draft else self.user
                 try:
-                    hash = WidgetInstanceHash.generate_key_hash()
+                    hash = HashUtil.generate_key_hash()
                     self.id = hash
                     self.created_at = make_aware(datetime.now())
                     super().save(*args, **kwargs)
@@ -1005,7 +1048,7 @@ class WidgetInstance(models.Model):
 
         # If original widget is student made, verify that the new user is a student or not.
         if dupe.is_student_made:
-            can_new_owner_author = PermManager.does_user_have_roles(
+            can_new_owner_author = RolesUtil.does_user_have_roles(
                 owner, ["author", "superuser"]
             )
             if can_new_owner_author:

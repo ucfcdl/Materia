@@ -1,8 +1,8 @@
+from core.utils.context import ContextUtil
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.generic import TemplateView
-from util.context_util import ContextUtil
 
 
 class MyWidgetsView(TemplateView):

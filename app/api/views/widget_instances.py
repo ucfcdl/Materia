@@ -21,6 +21,7 @@ from core.serializers import (
     WidgetInstanceSerializer,
     WidgetInstanceSerializerNoIdentifyingInfo,
 )
+from core.utils.roles import RolesUtil
 from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -31,8 +32,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from util.logging.play_data_exporter import PlayDataExporter
 from util.message_util import Msg, MsgBuilder
-from util.perm_manager import PermManager
-from util.widget.instance.instance_util import WidgetInstanceUtil
 
 logger = logging.getLogger("django")
 
@@ -121,17 +120,7 @@ class WidgetInstanceViewSet(viewsets.ModelViewSet):
                 return WidgetInstanceSerializerNoIdentifyingInfo
 
     def perform_create(self, serializer):
-        widget = serializer.validated_data["widget"]
-        is_draft = serializer.validated_data["is_draft"]
-        is_student = PermManager.user_is_student(self.request.user)
-
-        # Check to see if this widget is editable
-        if is_draft and not widget.is_editable:
-            raise ValidationError("Non-editable widgets cannot be saved as drafts")
-
-        # Make sure user can publish this widget
-        if not is_draft and not widget.publishable_by(self.request.user):
-            raise ValidationError("You cannot publish this widget")
+        is_student = RolesUtil.user_is_student(self.request.user)
 
         # Add and override some additional info, including user and student status stuffs
         new_instance = serializer.save(
@@ -147,25 +136,6 @@ class WidgetInstanceViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = self.get_object()
         is_draft = serializer.validated_data.get("is_draft", instance.is_draft)
-        guest_access = serializer.validated_data.get(
-            "guest_access", instance.guest_access
-        )
-
-        # Check to see if this widget is editable
-        if is_draft and not instance.widget.is_editable:
-            raise ValidationError("Non-editable widgets cannot be saved as drafts")
-
-        # Make sure user can publish this widget
-        if not is_draft and not instance.widget.publishable_by(self.request.user):
-            raise ValidationError("You cannot publish this widget")
-
-        # Make sure student made widgets cannot leave guest access mode
-        if instance.is_student_made:
-            if guest_access is not True:
-                raise ValidationError(
-                    "Student-made widgets must stay in guest access mode"
-                )
-            serializer.validated_data["attempts"] = -1
 
         # If is no longer a draft, add current user as publisher
         if instance.published_by is None and not is_draft:
@@ -235,9 +205,7 @@ class WidgetInstanceViewSet(viewsets.ModelViewSet):
     )
     def lock(self, request, pk=None):
         instance = self.get_object()
-        return Response(
-            {"lock_obtained": WidgetInstanceUtil.get_lock(instance.id, request.user)}
-        )
+        return Response({"lock_obtained": instance.lock(request.user)})
 
     @action(detail=True, methods=["get"])
     def scores(self, request, pk=None):
@@ -288,17 +256,10 @@ class WidgetInstanceViewSet(viewsets.ModelViewSet):
                     continue
 
                 # If this user is a student, make sure we can only give them perms if this instance is in guest mode
-                if PermManager.user_is_student(user):
+                if RolesUtil.user_is_student(user):
                     if not instance.guest_access:
                         refusals.append(user)
                         continue
-
-                    # Additionally, if this user is a student, give them view access to all assets of this instance
-                    # TODO smth abt this doesnt sound right - shouldn't we be giving perms to everyone?
-                    #      maybe i just dont understand how asset perms work
-                    PermManager.set_user_asset_perms_for_instance(
-                        user, instance, perm_level
-                    )
 
                 # Otherwise, update or create that perm
                 instance.permissions.update_or_create(
@@ -351,7 +312,7 @@ class WidgetInstanceViewSet(viewsets.ModelViewSet):
             ).as_drf_response()
 
         instance = self.get_object()
-        is_student = PermManager.user_is_student(request.user)
+        is_student = RolesUtil.user_is_student(request.user)
 
         result, file_ext = PlayDataExporter.export(
             instance, export_type, semester_ids, is_student

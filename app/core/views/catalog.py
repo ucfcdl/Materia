@@ -1,8 +1,7 @@
+from core.utils.context import ContextUtil
 from django.conf import settings
 from django.shortcuts import render
 from django.views.generic import TemplateView
-
-from util.context_util import ContextUtil
 
 
 class CatalogView(TemplateView):

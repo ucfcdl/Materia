@@ -1,11 +1,10 @@
 import logging
 
 from core.models import Asset, ObjectPermission, Question, WidgetInstance
+from core.utils.roles import RolesUtil
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions
-from util.perm_manager import PermManager
-from util.widget.instance.instance_util import WidgetInstanceUtil
 
 logger = logging.getLogger("django")
 
@@ -22,7 +21,7 @@ class IsSuperuser(permissions.BasePermission):
 
 class IsSuperOrSupportUser(permissions.BasePermission):
     def has_permission(self, request, view):
-        return PermManager.is_superuser_or_elevated(request.user)
+        return RolesUtil.is_superuser_or_elevated(request.user)
 
 
 class IsSelfOrElevatedAccess(permissions.BasePermission):
@@ -31,7 +30,7 @@ class IsSelfOrElevatedAccess(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return (
-            PermManager.is_superuser_or_elevated(request.user)
+            RolesUtil.is_superuser_or_elevated(request.user)
             or obj.id == request.user.id
         )
 
@@ -41,7 +40,7 @@ class HasPermsOrElevatedAccess(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:
             return False
-        elif (PermManager.is_superuser_or_elevated(request.user)):
+        elif RolesUtil.is_superuser_or_elevated(request.user):
             return True
         else:
             if (
@@ -67,7 +66,7 @@ class IsSuperuserOrReadOnly(permissions.BasePermission):
 class CanCreateWidgetInstances(permissions.BasePermission):
     def has_permission(self, request, view):
         user = request.user
-        if user is None or PermManager.does_user_have_roles(user, "no_author"):
+        if user is None or RolesUtil.does_user_have_roles(user, "no_author"):
             return False
         return True
 
@@ -80,7 +79,7 @@ class HasFullPermsOrElevated(permissions.BasePermission):
             return False
 
         # True if is elevated user
-        if PermManager.is_superuser_or_elevated(request.user):
+        if RolesUtil.is_superuser_or_elevated(request.user):
             return True
 
         # Otherwise, check if user has full perms on this object
@@ -112,12 +111,12 @@ class HasFullInstancePermsAndLockOrElevated(permissions.BasePermission):
             return False
 
         # True if is elevated user
-        if PermManager.is_superuser_or_elevated(request.user):
+        if RolesUtil.is_superuser_or_elevated(request.user):
             return True
 
         # Make sure the widget isn't locked
         # The frontend should stop users from editing if locked, but this is here *just in case*
-        if not WidgetInstanceUtil.user_has_lock_or_is_unlocked(obj, user):
+        if not obj.lock_available_to_user(user):
             return False
 
         # Otherwise, check if user has full perms on this object

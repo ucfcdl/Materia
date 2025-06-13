@@ -1,8 +1,9 @@
 import logging
-from django.http import HttpResponseNotFound
+
+from core.utils.context import ContextUtil
 from django.conf import settings
+from django.http import HttpResponseNotFound
 from django.shortcuts import render
-from util.context_util import ContextUtil
 
 
 def index(request, *args, **kwargs):

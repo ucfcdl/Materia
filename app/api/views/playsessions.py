@@ -2,6 +2,7 @@ import logging
 from pprint import pformat
 
 from api.filters import LogPlayFilterBackend
+from api.pagination import PageNumberWithTotalPagination
 from core.models import Log, LogPlay
 from core.serializers import (
     PlayLogUpdateSerializer,
@@ -11,15 +12,14 @@ from core.serializers import (
     PlaySessionWithExtrasSerializer,
     PlaySessionWithExtraUserInfoSerializer,
 )
+from core.utils.roles import RolesUtil
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from util.custom_paginations import PageNumberWithTotalPagination
 from util.logging.session_play import SessionPlay
 from util.message_util import MsgBuilder
-from util.perm_manager import PermManager
 
 logger = logging.getLogger("django")
 
@@ -47,7 +47,7 @@ class PlaySessionViewSet(viewsets.ModelViewSet):
 
     # we only need extras (widget name, inst name) when on the profile page
     def get_serializer_class(self):
-        if self.request.query_params.get("inst_id") and PermManager.user_is_student(
+        if self.request.query_params.get("inst_id") and RolesUtil.user_is_student(
             self.request.user
         ):
             return PlaySessionStudentViewSerializer

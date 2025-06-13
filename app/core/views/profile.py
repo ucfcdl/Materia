@@ -1,7 +1,7 @@
+from core.utils.context import ContextUtil
 from django.conf import settings as django_settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
-from util.context_util import ContextUtil
 
 
 @login_required

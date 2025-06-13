@@ -139,13 +139,16 @@ export const apiDeleteWidget = ({ instId }) => {
 }
 
 export const apiSaveWidget = (_params) => {
+	console.log("saving widget:", _params)
 	const body = {
 		widget_id: parseInt(_params.widgetId),
 		name: _params.name,
 		qset: _params.qset,
 		is_draft: _params.isDraft,
 	}
-	return handleRequest(methods.POST, '/api/instances/', { ...body })
+	const method = _params.instId ? methods.PATCH : methods.POST
+	const path = _params.instId ? `/api/instances/${_params.instId}/` : '/api/instances/'
+	return handleRequest(method, path, { ...body })
 }
 
 export const apiGetUser = (user = 'me') => {

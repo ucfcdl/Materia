@@ -1,6 +1,7 @@
 import json
 import logging
 
+from api.pagination import PageNumberWithTotalPagination
 from core.models import ObjectPermission, UserSettings
 from core.permissions import IsSelfOrElevatedAccess, IsSuperOrSupportUser, IsSuperuser
 from core.serializers import (
@@ -19,7 +20,6 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from util.custom_paginations import PageNumberWithTotalPagination
 from util.message_util import MsgBuilder
 
 logger = logging.getLogger("django")
