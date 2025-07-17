@@ -118,9 +118,6 @@ class ScoringUtil:
         )
         play = session_play.data
         play.percent = score_module.calculated_percent
-        if not session_play.is_preview:
-            play.is_complete = True
-            play.save()
 
         qset = instance.get_qset_for_play(session_play.data.id)
         from core.serializers import QuestionSetSerializer
@@ -173,10 +170,6 @@ class ScoringUtil:
         )
         play = session_play.data
         play.percent = score_module.calculated_percent
-        # dont save the play if its a preview
-        if not session_play.is_preview:
-            play.is_complete = True
-            play.save()
 
         widget_instance.get_qset(widget_instance.id, session_play.data.created_at)
         details["qset"] = (
@@ -227,9 +220,6 @@ class ScoringUtil:
         )
         play = session_play.data
         play.percent = score_module.calculated_percent
-        if not session_play.is_preview:
-            play.is_complete = True
-            play.save()
 
         if session_play.is_preview:
             qset = instance.get_qset_for_play(play_id, True)

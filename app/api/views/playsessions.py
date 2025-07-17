@@ -161,15 +161,24 @@ class PlaySessionViewSet(viewsets.ModelViewSet):
                         game_time=log.get("game_time", -1),
                     )
 
-                    # only plays are saved to the db - previews are stored in request session (see below)
+                    # only plays are saved to the db previews are stored in request session
                     if not is_preview:
                         log_model.save()
-                    # TODO put preview logs in session
 
                 if not is_preview:
                     session = SessionPlay(pk)
                     session.update_elapsed()
+                    play = session.data
+
+                    if not play.is_complete:
+                        if Log.objects.filter(
+                            play_id=play.id, log_type__iexact="WIDGET_END"
+                        ).exists():
+                            play.is_complete = True
+                            play.save()
+
                 else:
+                    # put preview logs in session
                     preview_play_id = update_serializer.validated_data[
                         "preview_play_id"
                     ]
