@@ -168,14 +168,6 @@ class PlaySessionViewSet(viewsets.ModelViewSet):
                 if not is_preview:
                     session = SessionPlay(pk)
                     session.update_elapsed()
-                    play = session.data
-
-                    if not play.is_complete:
-                        if Log.objects.filter(
-                            play_id=play.id, log_type__iexact="WIDGET_END"
-                        ).exists():
-                            play.is_complete = True
-                            play.save()
 
                 else:
                     # put preview logs in session
