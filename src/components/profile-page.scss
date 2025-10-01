@@ -27,6 +27,15 @@
 		border-radius: 4px;
 		border: #e4e4e4 1px solid;
 		box-shadow: 1px 3px 10px #dcdcdc;
+		overflow-anchor: none;
+
+		.bottom_anchor {
+			overflow-anchor: auto;
+			display: flex;
+			justify-content: center;
+			min-height:2px;
+			background-color: inherit;
+		}
 	}
 
 	section.page {

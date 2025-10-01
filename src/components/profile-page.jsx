@@ -39,9 +39,9 @@ const ProfilePage = () => {
 	})
 
 	useEffect(() => {
+		if (!userActivity?.plays) return
 		if (userActivity?.plays) {
 			const newActivity = userActivity.plays.map((log) => {
-				// return {
 				const activity = {
 					is_complete: log.is_complete,
 					inst_id: log.instance,
@@ -55,9 +55,10 @@ const ProfilePage = () => {
 				}
 					return activity
 			})
-			setActivityData(data => [...newActivity])
+			//dont replace the array but append so it dosent have to re-render
+			setActivityData( prev => [...prev, ...newActivity])
 		}
-	},[userActivity?.plays.length])
+	},[userActivity?.plays])
 
 	useEffect(() => {
 		mounted.current = true
@@ -88,7 +89,6 @@ const ProfilePage = () => {
 
 	let noActivityRender = <p className='no_logs'>You don't have any activity! Once you play a widget, your score history will appear here.</p>
 
-	// let activityContentRender = <></>
 	let activityContentRender = activityData.map((record) => {
 			return <li className={`activity_log ${record.is_complete == 1 ? 'complete' : 'incomplete'} ${record.score == 100 ? 'perfect_score' : ''}`} key={record.play_id}>
 				<a className='score-link' href={record.link}>
@@ -115,9 +115,17 @@ const ProfilePage = () => {
 		)
 	}
 
-	let mainContentRender = <section className='page'><div className='loading-icon-holder'><LoadingIcon /></div></section>
-	if ( !isFetching && !userActivity?.isFetching && currentUser) {
+
+	const isInitialLoad = (isFetching || userActivity?.isFetching) && activityData.length == 0
+	const isFetchingNextRequest = userActivity?.isFetching && activityData.length > 0
+
+	let mainContentRender
+	if(isInitialLoad || !currentUser) {
+		mainContentRender = <section className='page'><div className='loading-icon-holder'><LoadingIcon /></div></section>
+	}
+	else {
 		mainContentRender =
+			<>
 			<section className="page user">
 
 				<ul className="main_navigation">
@@ -147,15 +155,21 @@ const ProfilePage = () => {
 				<span className="activity_subheader">Activity</span>
 
 				<div className='activity'>
-					<div className={`loading-icon-holder ${userActivity?.isFetching ? 'loading' : ''}`}><LoadingIcon /></div>
+					{isFetchingNextRequest && ( <div className='loading-icon-holder'> <LoadingIcon /> </div> )}
 					<ul className='activity_list'>
 						{activityData.length ? activityContentRender : noActivityRender}
 					</ul>
 				</div>
 
-				{ userActivity?.hasNextPage ? <a className="show_more_activity action_button" onClick={_getMoreLogs}>{ userActivity.isFetching ? <span className='message_loading'>Loading...</span> : <span>Show more</span>}</a> : '' }
+				{ userActivity?.hasNextPage ?
+					<a className="show_more_activity action_button" onClick={_getMoreLogs}>{ userActivity.isFetching ?
+						<span className='message_loading '>Loading...</span> :
+						<span >Show more</span>}</a> : ''
+				}
 
 			</section>
+			<div className="bottom_anchor"> &nbsp;</div>
+			</>
 	}
 
 	return (
