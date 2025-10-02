@@ -19,6 +19,7 @@ const ProfilePage = () => {
 	let userActivity =  useGetPlaySessions("me", false)
 
 	const mounted = useRef(false)
+	const bottomRef = useRef(false)
 	const { data: currentUser, isFetching} = useQuery({
 		queryKey: ['user', 'me'],
 		queryFn: ({ queryKey }) => {
@@ -59,6 +60,13 @@ const ProfilePage = () => {
 			setActivityData( prev => [...prev, ...newActivity])
 		}
 	},[userActivity?.plays])
+
+	useEffect( () => {
+		console.log("Scrolling")
+		requestAnimationFrame(() => {
+			bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+		})
+	}, [activityData])
 
 	useEffect(() => {
 		mounted.current = true
@@ -168,7 +176,7 @@ const ProfilePage = () => {
 				}
 
 			</section>
-			<div className="bottom_anchor"> &nbsp;</div>
+			<div id="bottom_anchor" ref={bottomRef}> &nbsp;</div>
 			</>
 	}
 

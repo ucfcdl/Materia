@@ -27,15 +27,6 @@
 		border-radius: 4px;
 		border: #e4e4e4 1px solid;
 		box-shadow: 1px 3px 10px #dcdcdc;
-		overflow-anchor: none;
-
-		.bottom_anchor {
-			overflow-anchor: auto;
-			display: flex;
-			justify-content: center;
-			min-height:2px;
-			background-color: inherit;
-		}
 	}
 
 	section.page {
@@ -43,7 +34,7 @@
 		top: 0;
 		right: 0;
 		z-index: 100;
-		width: 575px; /*625px*/
+		width: 575px;
 		padding: 10px 60px 30px 145px;
 		background: url('/static/img/user_page_background.gif') 0 0 repeat-y;
 		background-color: #fff;
