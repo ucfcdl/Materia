@@ -292,6 +292,7 @@ class WidgetInstanceSerializer(serializers.ModelSerializer):
     def get_fields(self):
         fields = super().get_fields()
         hide_identifying_info = self.context.get("hide_identifying_info", True)
+        include_access_flag = self.context.get("include_access_flag", False)
 
         if hide_identifying_info:
             for field in [
@@ -300,7 +301,15 @@ class WidgetInstanceSerializer(serializers.ModelSerializer):
                 if fields[field]:
                     fields.pop(field)
 
+        if include_access_flag:
+            fields["has_access"] = serializers.SerializerMethodField()
+
         return fields
+
+    def get_has_access(self, widget_instance):
+        return widget_instance.permissions.filter(
+            user=self.context.get("request").user
+        ).exists()
 
     def _handle_qset(self, qset, widget_instance):
         # handling the qset requires a couple steps:

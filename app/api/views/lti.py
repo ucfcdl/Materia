@@ -5,8 +5,8 @@ from core.message_exception import MsgFailure, MsgNotFound
 from core.models import WidgetInstance
 from lti.ags.client import AGSClient
 from lti.services.launch import LTILaunchService
+from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 # from pprint import pformat
 
@@ -14,7 +14,12 @@ from rest_framework.views import APIView
 logger = logging.getLogger("django")
 
 
-class LtiWidgetInstancesInCourseView(APIView):
+class LtiWidgetInstancesInCourseView(GenericAPIView):
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["include_access_flag"] = True
+        return context
 
     def get(self, request, context_id):
 
@@ -48,7 +53,9 @@ class LtiWidgetInstancesInCourseView(APIView):
                     .distinct()
                 )
 
-                serialized = WidgetInstanceSerializer(instances, many=True)
+                serialized = WidgetInstanceSerializer(
+                    instances, many=True, context=self.get_serializer_context()
+                )
                 serialized_data = serialized.data
 
                 for i, instance in enumerate(instances):
