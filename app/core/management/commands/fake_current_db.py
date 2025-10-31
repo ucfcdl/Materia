@@ -15,8 +15,8 @@ class Command(base.BaseCommand):
         # fake core first migration
         call_command("migrate", "core", "0001_initial", fake=True)
 
-        # add an 'id' auto-incrementing primary key to the top of the given table
         def add_id_column_to_table(table_name):
+            """Add an 'id' auto-incrementing primary key to the top of the given table"""
             cursor = connection.cursor()
             cursor.execute(
                 f"ALTER TABLE `{table_name}`"
