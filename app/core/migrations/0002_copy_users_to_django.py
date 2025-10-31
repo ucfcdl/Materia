@@ -59,7 +59,7 @@ def copy_users_to_django(apps, schema_editor):
 
 def revert_django_users_to_empty(apps, schema_editor):
     # delete all Django User objects
-    DjangoUser = apps.get_model("core", "User")
+    DjangoUser = apps.get_model("auth", "User")
     db_alias = schema_editor.connection.alias
 
     try:
