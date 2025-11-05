@@ -443,9 +443,6 @@ const WidgetCreator = ({instId, widgetId, minHeight='', minWidth=''}) => {
 
 		apiSaveWidget(newWidget).then((inst) => {
 			if (inst != null && inst.id != null) {
-				if (String(instIdRef.current).length !== 0) {
-					window.location.hash = `#${inst.id}`
-				}
 				switch (saveModeRef.current) {
 					case 'preview':
 						var url = `${window.BASE_URL}preview/${inst.id}`
