@@ -81,5 +81,9 @@ class Migration(migrations.Migration):
     dependencies = [("core", "0001_initial")]
 
     operations = [
-        migrations.RunPython(copy_users_to_django, revert_django_users_to_empty)
+        migrations.RemoveField(
+            model_name="logplay",
+            name="environment_data",
+        ),
+        migrations.RunPython(copy_users_to_django, revert_django_users_to_empty),
     ]

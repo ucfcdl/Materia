@@ -10,10 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="logplay",
-            name="environment_data",
-        ),
         migrations.AddField(
             model_name="logplay",
             name="lti_token",
