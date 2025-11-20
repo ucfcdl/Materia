@@ -12,11 +12,9 @@ class Command(base.BaseCommand):
         call_command("migrate", "contenttypes")
         call_command("migrate", "sessions")
 
-        # fake core first migration
-        call_command("migrate", "core", "0001_initial", fake=True)
-
         def add_id_column_to_table(table_name):
             """Add an 'id' auto-incrementing primary key to the top of the given table"""
+            self.stdout.write(f"Adding id primary key to {table_name} table")
             cursor = connection.cursor()
             cursor.execute(
                 f"ALTER TABLE `{table_name}`"
@@ -26,28 +24,34 @@ class Command(base.BaseCommand):
 
         # existing PHP data features one table using a different storage
         #  engine for some reason, needs to be the same as everything else
+        self.stdout.write("Altering log_activity table to InnoDB engine")
         cursor = connection.cursor()
         cursor.execute("ALTER TABLE `log_activity` ENGINE = InnoDB;")
         cursor.close()
 
         # existing PHP data features one table using a compound primary key
         # only single-column primary keys are viable for the Django ORM
+        self.stdout.write("Altering user_meta table to have single-column primary key")
         cursor = connection.cursor()
         cursor.execute("ALTER TABLE `user_meta` DROP PRIMARY KEY;")
         # the existing log table has the 'type' column set as an ENUM
         # core migration 0001 will build this column as a varchar instead
         # manually change it to match the migration 0001 expectation so
         #  future migrations are operating correctly
+        self.stdout.write("Altering log.type column to be VARCHAR")
         cursor.execute("ALTER TABLE `log` MODIFY `type` VARCHAR(26) NULL DEFAULT ''")
 
         # Remove the 'visible' column from the log table as it is not used
+        self.stdout.write("Removing log.visible column")
         cursor.execute("ALTER TABLE `log` DROP COLUMN `visible`;")
 
         # Remove the 'is_read' column from the notification table as it is not used.
         # Look to add is_dismissed in the future
+        self.stdout.write("Removing notification.is_read column")
         cursor.execute("ALTER TABLE `notification` DROP COLUMN `is_read`;")
 
         # Remove an existing unique constraint so that Django can add its own in the correct way
+        self.stdout.write("Removing date_range.semester_year_start_at_end_at index")
         cursor.execute(
             "ALTER TABLE `date_range` DROP INDEX `semester_year_start_at_end_at`;"
         )
@@ -56,6 +60,7 @@ class Command(base.BaseCommand):
 
         # convert all 0/1 enums to VARCHAR
         def convert_enum_to_varchar(table, column):
+            self.stdout.write(f"Converting {table}.{column} from ENUM to VARCHAR")
             cursor = connection.cursor()
             cursor.execute(
                 f"ALTER TABLE `{table}` MODIFY `{column}` VARCHAR(1) NULL DEFAULT '0'"
@@ -91,6 +96,7 @@ class Command(base.BaseCommand):
 
         # convert all empty strings to 0
         def convert_empty_string_to_zero(table, column):
+            self.stdout.write(f"Converting empty strings to '0' in {table}.{column}")
             cursor = connection.cursor()
             cursor.execute(
                 f"UPDATE `{table}` SET `{column}` = '0' WHERE `{column}` = '';"
@@ -101,6 +107,9 @@ class Command(base.BaseCommand):
             convert_empty_string_to_zero(table=field[0], column=field[1])
 
         def make_column_in_table_nullable_and_set_zero_to_null(table, column):
+            self.stdout.write(
+                f"Making {table}.{column} nullable and setting 0 values to NULL"
+            )
             cursor = connection.cursor()
             cursor.execute(f"ALTER TABLE {table} MODIFY {column} int(11) NULL;")
             cursor.execute(f"UPDATE {table} SET {column} = null WHERE {column} = 0;")
@@ -129,6 +138,9 @@ class Command(base.BaseCommand):
         add_id_column_to_table("perm_object_to_user")
         add_id_column_to_table("user_meta")
         add_id_column_to_table("widget_metadata")
+
+        # fake core first migration
+        call_command("migrate", "core", "0001_initial", fake=True)
 
         call_command("showmigrations")
 
