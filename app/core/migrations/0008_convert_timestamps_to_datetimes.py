@@ -7,7 +7,7 @@ from django.utils import timezone
 
 logger = logging.getLogger("django")
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 5000
 
 
 def chunk_ids(num_ids, chunk_size):
@@ -67,12 +67,12 @@ def translate_timestamps(apps, schema_editor):
     Log = apps.get_model("core", "Log")
     # Different batch strategy for massive tables like Log
     # split into smaller batches of logs to avoid memory issues
-    for ids in chunk_ids(Log.objects.last().id, BATCH_SIZE):
+    for ids in chunk_ids(Log.objects.last().id, 100000):
         print("Processing Log IDs:", ids[0], "to", ids[1])
         batch_logs = Log.objects.filter(id__range=ids)
         for log in batch_logs:
             log.created_at_dt = timestamp_to_datetime(log.created_at)
-        Log.objects.bulk_update(batch_logs, ["created_at_dt"])
+        Log.objects.bulk_update(batch_logs, ["created_at_dt"], batch_size=BATCH_SIZE)
 
     logger.info("Converting LogActivity timestamps to datetimes")
     LogActivity = apps.get_model("core", "LogActivity")
