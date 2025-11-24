@@ -85,5 +85,7 @@ class Migration(migrations.Migration):
             model_name="logplay",
             name="environment_data",
         ),
-        migrations.RunPython(copy_users_to_django, revert_django_users_to_empty),
+        migrations.RunPython(
+            copy_users_to_django, revert_django_users_to_empty, atomic=False
+        ),
     ]

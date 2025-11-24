@@ -224,8 +224,7 @@ class Migration(migrations.Migration):
         invalid_widgetmetadata_rows.delete()
 
     operations = [
-        migrations.RunPython(clean_data),
-        # migrations.RunPython(delete_table_conditionally, atomic=False),
+        migrations.RunPython(clean_data, atomic=False),
         migrations.DeleteModel(
             name="Migration",
         ),

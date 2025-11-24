@@ -300,6 +300,5 @@ class Migration(migrations.Migration):
             name="expires_at_dt",
             field=models.DateTimeField(default=timezone.now, null=True),
         ),
-        # TODO: Determine if we should remove atomic=False for production after testing
         migrations.RunPython(translate_timestamps, translate_datetimes, atomic=False),
     ]
