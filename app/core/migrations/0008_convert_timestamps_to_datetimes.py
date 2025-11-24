@@ -13,10 +13,12 @@ BATCH_SIZE = 1000
 def chunk_ids(num_ids, chunk_size):
     """
     Used to split large number of IDs into smaller chunks for processing
+    :param num_ids: total number of IDs
+    :param chunk_size: size of each chunk
+    :return: generator yielding tuples of (start_id, end_id)
     """
-    id_list = list(range(1, num_ids + 1))
-    for i in range(0, len(id_list), chunk_size):
-        yield id_list[i : i + chunk_size]
+    for i in range(0, num_ids, chunk_size):
+        yield (i, i + chunk_size)
 
 
 def translate_timestamps(apps, schema_editor):
@@ -66,8 +68,8 @@ def translate_timestamps(apps, schema_editor):
     # Different batch strategy for massive tables like Log
     # split into smaller batches of logs to avoid memory issues
     for ids in chunk_ids(Log.objects.last().id, BATCH_SIZE):
-        print("Processing Log IDs:", ids[0], "to", ids[-1])
-        batch_logs = Log.objects.filter(id__gte=ids[0], id__lte=ids[-1])
+        print("Processing Log IDs:", ids[0], "to", ids[1])
+        batch_logs = Log.objects.filter(id__range=ids)
         for log in batch_logs:
             log.created_at_dt = timestamp_to_datetime(log.created_at)
         Log.objects.bulk_update(batch_logs, ["created_at_dt"])
@@ -83,7 +85,7 @@ def translate_timestamps(apps, schema_editor):
 
     logger.info("Converting LogPlay timestamps to datetimes")
     LogPlay = apps.get_model("core", "LogPlay")
-    batch_logplays = LogPlay.objects.filter(id__in=ids)
+    batch_logplays = LogPlay.objects.all()
     for logplay in batch_logplays:
         logplay.created_at_dt = timestamp_to_datetime(log.created_at)
     LogPlay.objects.bulk_update(
