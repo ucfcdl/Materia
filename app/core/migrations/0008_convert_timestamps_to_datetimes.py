@@ -67,7 +67,7 @@ def translate_timestamps(apps, schema_editor):
     # split into smaller batches of logs to avoid memory issues
     for ids in chunk_ids(Log.objects.last().id, BATCH_SIZE):
         print("Processing Log IDs:", ids[0], "to", ids[-1])
-        batch_logs = Log.objects.filter(id__in=ids)
+        batch_logs = Log.objects.filter(id__gte=ids[0], id__lte=ids[-1])
         for log in batch_logs:
             log.created_at_dt = timestamp_to_datetime(log.created_at)
         Log.objects.bulk_update(batch_logs, ["created_at_dt"])
