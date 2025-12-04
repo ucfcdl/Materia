@@ -13,6 +13,16 @@ class Migration(migrations.Migration):
         # we can't remove these columns while the constraint is in place, so we have to temporarily remove it
         # this constraint will be re-added as the last operation of this migration
         migrations.RemoveConstraint(model_name="daterange", name="date_range_main"),
+        # Removing indexes on to-be-removed fields on large tables to speed up the migration
+        migrations.RemoveIndex(
+            model_name="log",
+            name="log_created_at",
+        ),
+        migrations.RemoveIndex(
+            model_name="logplay",
+            name="log_play_created_at",
+        ),
+        # remove fields
         migrations.RemoveField(
             model_name="asset",
             name="created_at",
@@ -89,6 +99,7 @@ class Migration(migrations.Migration):
             model_name="widgetqset",
             name="created_at",
         ),
+        # Move _dt fields to main field names
         migrations.RenameField(
             model_name="asset", old_name="created_at_dt", new_name="created_at"
         ),
@@ -150,6 +161,7 @@ class Migration(migrations.Migration):
         migrations.RenameField(
             model_name="widgetqset", old_name="created_at_dt", new_name="created_at"
         ),
+        # re-add constraint
         migrations.AddConstraint(
             model_name="daterange",
             constraint=models.UniqueConstraint(

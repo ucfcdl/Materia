@@ -378,7 +378,8 @@ class Log(models.Model):
     item_id = models.CharField(max_length=255)
     text = models.TextField()
     value = models.CharField(max_length=255)
-    created_at = models.DateTimeField(default=timezone.now)
+    created_at = models.IntegerField()
+    created_at_dt = models.DateTimeField(default=timezone.now)
     game_time = models.IntegerField()
     ip = models.CharField(max_length=20)
 
