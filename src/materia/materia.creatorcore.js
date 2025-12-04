@@ -108,7 +108,7 @@ Namespace('Materia').CreatorCore = (() => {
 		if (mediaId.startsWith('data:')) {
 			return mediaId
 		}
-		return `${_mediaUrl}/${mediaId}`
+		return _mediaUrl.replace(/\/$/, '') + '/' + mediaId
 	}
 
 	const showMediaImporter = (types) => {
@@ -134,7 +134,7 @@ Namespace('Materia').CreatorCore = (() => {
 
 	const setHeight = (h) => {
 		if (!h) {
-			h = document.getElementsByTagName('html')[0].height()
+			h = document.getElementsByTagName('html')[0].offsetHeight
 		}
 		if (h !== _lastHeight) {
 			_sendPostMessage('setHeight', [h])

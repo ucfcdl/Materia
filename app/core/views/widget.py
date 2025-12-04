@@ -78,7 +78,7 @@ class WidgetDemoView(MateriaLoginMixin, MateriaWidgetPlayProcessor, TemplateView
         validation = WidgetPlayValidationService.validate_widget_context(
             request,
             instance,
-            is_demo=True,
+            has_guest_access=True,
             is_preview=False,
             is_embedded=False,
         )
@@ -87,7 +87,7 @@ class WidgetDemoView(MateriaLoginMixin, MateriaWidgetPlayProcessor, TemplateView
 
     def process_context(self, validation):
         return _create_player_context(
-            validation, self.instance, self.request, is_demo=True, is_preview=False
+            validation, self.instance, self.request, is_preview=False
         )
 
     def before_play_init(self, instance):
@@ -106,13 +106,17 @@ class WidgetPlayView(
 
     def get_validation(self, request, instance):
         context_id = ""
-        if self.launch is not None:
-            context_id = LTILaunchService.get_context_id(self.launch)
+        launch = LTILaunchService.get_or_recover_launch(request)
+        if launch is not None:
+            context_id = LTILaunchService.get_context_id(launch)
+
+        # Check if this instance is a guest/demo instance
+        has_guest_access = instance.guest_access
 
         validation = WidgetPlayValidationService.validate_widget_context(
             request,
             instance,
-            is_demo=False,
+            has_guest_access=has_guest_access,
             is_preview=False,
             is_embedded=self.is_embedded,
             context_id=context_id,
@@ -122,7 +126,11 @@ class WidgetPlayView(
 
     def process_context(self, validation):
         return _create_player_context(
-            validation, self.instance, self.request, is_demo=False, is_preview=False
+            validation,
+            self.instance,
+            self.request,
+            is_preview=False,
+            is_embedded=self.is_embedded,
         )
 
     def before_play_init(self, instance):
@@ -132,23 +140,25 @@ class WidgetPlayView(
         lti_token = None
 
         # do we have an LTI launch?
-        # at this point the launch is recovered from either request or session
         # if it is - update the play with LTI flags and pass the token to context
-        if self.launch and not instance.guest_access:
+        launch = LTILaunchService.get_or_recover_launch(self.request)
+        if launch and not instance.guest_access:
             play.auth = "lti"
-            play.context_id = LTILaunchService.get_context_id(self.launch)
+            play.context_id = LTILaunchService.get_context_id(launch)
 
             # if it's a first-time launch, store in session
-            if LTILaunchService.get_launch_state(self.launch) == "INITIAL":
-                LTILaunchService.store_session_launch(
-                    self.request, play.id, self.launch
-                )
+            if LTILaunchService.get_launch_state(launch) == "INITIAL":
+                LTILaunchService.store_session_launch(self.request, play.id, launch)
                 lti_token = play.id
             else:
                 lti_token = self.request.GET.get("token")
 
             play.lti_token = lti_token
             play.save()
+
+            logger.error(
+                f"LTI: session initialization for user {play.user.id} with play {play.id} in context {play.context_id}"
+            )
 
         return {"play_id": play.id, "lti_token": lti_token}
 
@@ -162,7 +172,7 @@ class WidgetPlayView(
         if instance is None:
             return lti_error_page(request, "error_unknown_assignment")
 
-        if LTIAuthService.is_user_author(launch):
+        if LTIAuthService.is_user_course_author(launch):
             if instance.guest_access:
                 return lti_error_page(request, "error_lti_guest_mode")
             else:
@@ -174,10 +184,6 @@ class WidgetPlayView(
 
         if context:
             return render(request, "react.html", context)
-
-        # assign launch object as an instance attribute so before_play_init can use it
-        # we only do this once confirming it's an appropriate widget launch
-        self.launch = launch
 
         return None
 
@@ -193,19 +199,26 @@ class WidgetPreviewView(MateriaLoginMixin, MateriaWidgetPlayProcessor, TemplateV
 
     def get_validation(self, request, instance):
         validation = WidgetPlayValidationService.validate_widget_context(
-            request, instance, is_demo=False, is_preview=True, is_embedded=False
+            request,
+            instance,
+            has_guest_access=False,
+            is_preview=True,
+            is_embedded=False,
         )
 
         return validation
 
     def process_context(self, validation):
         return _create_player_context(
-            validation, self.instance, self.request, is_demo=False, is_preview=True
+            validation,
+            self.instance,
+            self.request,
+            is_preview=True,
+            is_embedded=self.is_embedded,
         )
 
     def before_play_init(self, instance):
         preview = WidgetPlayInitService.init_preview(self.request)
-
         return {"play_id": preview, "lti_token": None}
 
 
@@ -223,6 +236,14 @@ class WidgetCreatorView(MateriaLoginMixin, PermissionRequiredMixin, TemplateView
         widget = Widget.objects.filter(pk=_get_id_from_slug(widget_slug)).first()
         if not widget:
             raise Http404("Could not find widget instance")
+
+        if instance_id is not None:
+            widget_instance = WidgetInstance.objects.get(id=instance_id)
+            can_edit = widget_instance.editable_by_current_user(self.request.user)
+            if not can_edit and not PermService.is_superuser_or_elevated(
+                self.request.user
+            ):
+                return _create_widget_no_permission_page(self.request)
 
         return _create_editor_page("Create Widget", widget, self.request)
 
@@ -250,8 +271,8 @@ class WidgetGuideView(TemplateView):
 
         return ContextUtil.create(
             title=title,
-            js_resources="dist/js/guides.js",
-            css_resources="dist/css/guides.css",
+            js_resources=settings.JS_GROUPS["guides"],
+            css_resources=settings.CSS_GROUPS["guides"],
             page_type="guide",
             js_globals={
                 "NAME": widget.name,
@@ -276,8 +297,8 @@ class WidgetQsetHistoryView(MateriaLoginMixin, TemplateView):
         return ContextUtil.create(
             title="Qset Catalog",
             page_type="import",
-            js_resources="dist/js/qset-history.js",
-            css_resources="dist/css/qset-history.css",
+            js_resources=settings.JS_GROUPS["qset-history"],
+            css_resources=settings.CSS_GROUPS["qset-history"],
             request=self.request,
         )
 
@@ -289,8 +310,8 @@ class WidgetQsetGenerateView(MateriaLoginMixin, TemplateView):
         return ContextUtil.create(
             title="Qset Generation",
             page_type="generate",
-            js_resources="dist/js/qset-generator.js",
-            css_resources="dist/css/qset-generator.css",
+            js_resources=settings.JS_GROUPS["qset-generator"],
+            css_resources=settings.CSS_GROUPS["qset-generator"],
             request=self.request,
         )
 
@@ -303,7 +324,6 @@ def _create_player_context(
     validation: str,
     instance: WidgetInstance,
     request: HttpRequest,
-    is_demo: bool = False,
     is_preview: bool = False,
     is_embedded: bool = False,
 ):
@@ -366,8 +386,8 @@ def _display_widget(
 def _create_editor_page(title: str, widget: Widget, request: HttpRequest):
     return ContextUtil.create(
         title=f"{title}",
-        js_resources="dist/js/creator-page.js",
-        css_resources="dist/css/creator-page.css",
+        js_resources=settings.JS_GROUPS["creator"],
+        css_resources=settings.CSS_GROUPS["creator"],
         js_globals={
             "WIDGET_HEIGHT": widget.height,
             "WIDGET_WIDTH": widget.width,
@@ -422,6 +442,15 @@ def _create_widget_login_vars(
     }
 
     return js_globals
+
+
+def _create_widget_no_permission_page(request: HttpRequest):
+    return ContextUtil.create(
+        title="No Permission",
+        js_resources=settings.JS_GROUPS["no-permission"],
+        css_resources=settings.CSS_GROUPS["no-permission"],
+        request=request,
+    )
 
 
 def _create_draft_not_playable_page(request: HttpRequest):
@@ -481,7 +510,6 @@ def _create_pre_embed_placeholder_page(request: HttpRequest, instance: WidgetIns
 
 
 def _create_embedded_only_page(request: HttpRequest, instance: WidgetInstance):
-    # TODO 'before_embedded_only' event trigger occurred here
 
     return ContextUtil.create(
         title="Widget Unavailable",
@@ -500,7 +528,7 @@ def _create_lti_success_page(request: HttpRequest, instance: WidgetInstance):
     """
     TODO should this be under the LTI app?
     """
-    is_owner = instance.editable_by_current_user(request.user)
+    is_owner = instance.permissions.filter(user=request.user).exists()
     owner_list = instance.permissions.filter(
         permission=ObjectPermission.PERMISSION_FULL
     )

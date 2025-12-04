@@ -14,11 +14,11 @@ const STATE_INVALID = 'invalid'
 const STATE_EXPIRED = 'expired'
 const STATE_NO_SCORES = 'no_scores'
 
-const Scores = ({ instID, playID: playIDProp, userID, token, isEmbedded, isPreview, isSingle}) => {
+const Scores = ({ instID, playID: playIDProp, userID, token, contextID, isEmbedded, isPreview, isSingle}) => {
 
 	const [playID, setPlayID] = useState(playIDProp)
 	const [errorState, setErrorState] = useState(null)
-	const [attemptsLeft, setAttemptsLeft] = useState(0)
+	const [attemptsLeft, setAttemptsLeft] = useState(-1)
 	const [currentAttempt, setCurrentAttempt] = useState(null)
 
 	const [attempts, setAttempts] = useState([])
@@ -64,11 +64,11 @@ const Scores = ({ instID, playID: playIDProp, userID, token, isEmbedded, isPrevi
 		Also disabled for guest plays, preview plays
 	*/
 	const { isLoading: scoresAreLoading, data: instanceScores, error: instanceScoresError, refetch: loadInstanceScores } = useQuery({
-		queryKey: ['inst-scores', instID],
+		queryKey: ['inst-scores', instID, contextID],
 		queryFn: () => {
-			return apiGetWidgetInstanceScores(instID, userID)
+			return apiGetWidgetInstanceScores(instID, userID, contextID)
 		},
-		enabled: !isPreview && !isSingle && !!userID && !!instID,
+		enabled: !isPreview && !isSingle && !instanceIsLoading && !instance['guest_access'] && !!userID && !!instID,
 		staleTime: Infinity,
 		refetchOnWindowFocus: false,
 		retry: false,
@@ -153,7 +153,7 @@ const Scores = ({ instID, playID: playIDProp, userID, token, isEmbedded, isPrevi
 				const scores = Array.from(instanceScores.scores)
 				// Sort scores by created_at in ascending order (oldest first)
 				scores.sort((a, b) => {
-					return a.created_at - b.created_at
+					return new Date(a.created_at) - new Date(b.created_at)
 				})
 				for (let score of scores) {
 					score.roundedPercent = parseFloat(score.percent).toFixed(2)
@@ -162,7 +162,7 @@ const Scores = ({ instID, playID: playIDProp, userID, token, isEmbedded, isPrevi
 					score.date = date
 				}
 				setAttempts(scores)
-				setAttemptsLeft(scores.attemptsLeft)
+				setAttemptsLeft(instanceScores.attemptsLeft)
 				const hash = getAttemptNumberFromHash()
 				if (hash && scores.length >= hash) {
 					setCurrentAttempt(parseInt(hash))
@@ -318,7 +318,6 @@ const Scores = ({ instID, playID: playIDProp, userID, token, isEmbedded, isPrevi
 					showResultsTable: true
 				})
 			}
-			console.log("calling sendToWidget")
 			sendToWidget('initWidget', [playData.qset, playData.details.table, instance, isPreview, window.MEDIA_URL])
 		}
 	}
@@ -475,7 +474,7 @@ const Scores = ({ instID, playID: playIDProp, userID, token, isEmbedded, isPrevi
 	if (!attributes.hidePreviousAttempts) {
 		let attemptList = attempts.map((attempt, index) => {
 			return (
-				<li key={index}>
+				<li key={index} className={ !!attempt.current_context ? 'current-context' : 'previous-context' }>
 					<a href={`#attempt-${index + 1}`}
 						onClick={() => setKeepPrevOpen(false)}
 					>
@@ -503,19 +502,20 @@ const Scores = ({ instID, playID: playIDProp, userID, token, isEmbedded, isPrevi
 	}
 
 	let playAgainBtn = null
-	if (!attributes.hidePlayAgain && attemptsLeft > 0) {
+	if (!attributes.hidePlayAgain && (attemptsLeft > 0 || attemptsLeft == -1)) {
 		playAgainBtn = (
 			<a id='play-again' className='action_button' href={attributes.href}>
 				{isPreview ? 'Preview' : 'Play'} Again
-				{attemptsLeft > 0 ? <span>({attemptsLeft} Left)</span> : <></>}
+				{attemptsLeft > 0 ? <span>{`(${attemptsLeft} Left)`}</span> : <></>}
 			</a>
 		)
 	}
 
 	let scoreHeaderRender = null
 	if (!errorState) {
+		const headerClass = playAgainBtn == null ? 'justify-left' : 'justify-center'
 		scoreHeaderRender = (
-			<header className={`header score-header ${isPreview ? 'preview' : ''}`}>
+			<header className={`header score-header ${headerClass} ${isPreview ? 'preview' : ''}`}>
 				{priorAttempts}
 				<h1 className='widget-title'>{attributes.title ? attributes.title : ''}</h1>
 				{playAgainBtn}

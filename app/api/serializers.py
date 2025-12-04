@@ -23,6 +23,7 @@ from core.services.perm_service import PermService
 from core.services.semester_service import SemesterService
 from core.services.user_service import UserService
 from core.utils.b64_util import Base64Util
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import serializers
@@ -164,6 +165,17 @@ class WidgetMetadataDictField(serializers.Field):
 class WidgetSerializer(serializers.ModelSerializer):
     meta_data = serializers.JSONField(source="metadata", required=False)
     dir = serializers.CharField(read_only=True)
+    creator = serializers.SerializerMethodField()
+
+    def get_creator(self, widget):
+        """
+        Checks if the widget uses the default creator - if so, returns the path for that
+        Otherwise, returns the value the widget has set.
+        """
+        if widget.creator == "default" or widget.creator == "":
+            return settings.URLS["STATIC_CROSSDOMAIN"] + "default-creator/creator.html"
+        else:
+            return widget.creator
 
     class Meta:
         model = Widget
@@ -204,6 +216,7 @@ class WidgetSerializer(serializers.ModelSerializer):
     def update(self, widget, validated_data):
         allowed_fields = [
             "clean_name",
+            "featured",
             "in_catalog",
             "is_editable",
             "is_scorable",
@@ -439,29 +452,6 @@ class PlayLogUpdateSerializer(serializers.Serializer):
             )
 
 
-class PlaySessionCreateSerializer(serializers.Serializer):
-    instanceId = serializers.CharField()
-    is_preview = serializers.BooleanField(required=False)
-
-    def validate(self, data):
-        is_preview = data.get("is_preview", False)
-        if is_preview is True:
-            raise serializers.ValidationError(
-                "Invalid session creation for preview play."
-            )
-
-        instance = WidgetInstance.objects.get(pk=data["instanceId"])
-        if not instance:
-            raise serializers.ValidationError(
-                f"Instance ID {data["InstanceId"]} invalid."
-            )
-
-        if not instance.playable_by_current_user(self.context["request"].user):
-            raise serializers.ValidationError("Instance not playable by current user.")
-
-        return {"instance": instance, "is_preview": is_preview}
-
-
 # play session model (kinda) serializer (outbound)
 class PlaySessionSerializer(serializers.ModelSerializer):
     inst_name = serializers.CharField(source="instance.name", read_only=True)
@@ -556,10 +546,12 @@ class ScoreSummarySerializer(serializers.Serializer):
             return []
 
         summary = {}
+        unique_students = {}
 
         for log in logs:
 
             semester_key = f"{log.created_at.year}-{log.semester.semester}"
+            user_id = 0 if log.user is None else log.user.id
 
             if semester_key not in summary:
 
@@ -572,6 +564,8 @@ class ScoreSummarySerializer(serializers.Serializer):
                     else:
                         distribution[i] = 0
 
+                unique_students[semester_key] = [user_id]
+
                 summary[semester_key] = {
                     "id": log.semester.id,
                     "term": log.semester.semester,
@@ -582,9 +576,12 @@ class ScoreSummarySerializer(serializers.Serializer):
                 }
 
             else:
-                summary[semester_key]["students"] += 1
-                summary[semester_key]["total"] += log.percent
 
+                if user_id not in unique_students[semester_key]:
+                    unique_students[semester_key].append(user_id)
+                    summary[semester_key]["students"] += 1
+
+                summary[semester_key]["total"] += log.percent
                 summary[semester_key]["distribution"][
                     int(log.percent / 10) if int(log.percent / 10) < 10 else 9
                 ] += 1

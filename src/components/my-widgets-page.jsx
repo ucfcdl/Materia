@@ -103,7 +103,7 @@ const MyWidgetsPage = () => {
 
 	// checks whether "-collab" is contained in hash id
 	const hashContainsCollab = () => {
-		const match = window.location.hash.match(/#(?:[A-Za-z0-9]{5})(-collab)*$/)
+		const match = window.location.hash.match(/#(?:[A-Za-z0-9]{5,})(-collab)*$/)
 
 		if (match != null && match[1] != null)
 		{
@@ -361,7 +361,7 @@ const MyWidgetsPage = () => {
 		if (!widgetSpecified) {
 			return <section className={`page directions unchosen ${beardMode ? 'bearded' : ''}`}>
 				<h1>Your Widgets</h1>
-				<p>Choose a widget from the list on the left.</p>
+				<p>Select one of your widgets to get started.</p>
 			</section>
 		}
 
