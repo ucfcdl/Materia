@@ -62,8 +62,8 @@ class Command(base.BaseCommand):
 
         cursor.close()
 
-        # convert all 0/1 enums to VARCHAR
         def convert_enum_to_varchar(table, column):
+            """convert all 0/1 enums to VARCHAR"""
             self.stdout.write(f"Converting {table}.{column} from ENUM to VARCHAR")
             cursor = connection.cursor()
             cursor.execute(
@@ -98,8 +98,8 @@ class Command(base.BaseCommand):
         for field in boolean_fields:
             convert_enum_to_varchar(table=field[0], column=field[1])
 
-        # convert all empty strings to 0
         def convert_empty_string_to_zero(table, column):
+            """convert all empty strings to 0"""
             self.stdout.write(f"Converting empty strings to '0' in {table}.{column}")
             cursor = connection.cursor()
             cursor.execute(
@@ -142,6 +142,30 @@ class Command(base.BaseCommand):
         add_id_column_to_table("perm_object_to_user")
         add_id_column_to_table("user_meta")
         add_id_column_to_table("widget_metadata")
+
+        def convert_timestamp_column_to_datetime(table, column):
+            """Handle datetime fields that were stored as timestamps in PHP"""
+            self.stdout.write(
+                f"Converting {table}.{column} from UNIX timestamp (INT) to DATETIME"
+            )
+            cursor = connection.cursor()
+
+            # Create new datetime column
+            cursor.execute(
+                f"ALTER TABLE `{table}` ADD COLUMN `{column}_dt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;"
+            )
+            # Populate new datetime column with converted values
+            cursor.execute(
+                f"UPDATE `{table}` SET `{column}_dt` = FROM_UNIXTIME(`{column}`);"
+            )
+            # Drop old timestamp column
+            cursor.execute(f"ALTER TABLE `{table}` DROP COLUMN `{column}`;")
+            # Rename new datetime column to original column name
+            cursor.execute(
+                f"ALTER TABLE `{table}` RENAME COLUMN `{column}_dt` to `{column}`;"
+            )
+
+            cursor.close()
 
         # fake core first migration
         call_command("migrate", "core", "0001_initial", fake=True)
