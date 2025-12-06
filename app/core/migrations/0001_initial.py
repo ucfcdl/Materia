@@ -130,7 +130,6 @@ class Migration(migrations.Migration):
                 ("percent", models.FloatField()),
                 ("elapsed", models.IntegerField()),
                 ("qset_id", models.IntegerField()),
-                ("environment_data", models.TextField()),
                 ("auth", models.CharField(max_length=100)),
                 ("referrer_url", models.CharField(max_length=255)),
                 ("context_id", models.CharField(max_length=255)),

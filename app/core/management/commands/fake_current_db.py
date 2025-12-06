@@ -45,6 +45,10 @@ class Command(base.BaseCommand):
         self.stdout.write("Removing log.visible column")
         cursor.execute("ALTER TABLE `log` DROP COLUMN `visible`;")
 
+        # Remove the environment_data column from log_play as it is huge and unnecessary
+        self.stdout.write("Removing log_play.environment_data column")
+        cursor.execute("ALTER TABLE log_play DROP COLUMN environment_data;")
+
         # Remove the 'is_read' column from the notification table as it is not used.
         # Look to add is_dismissed in the future
         self.stdout.write("Removing notification.is_read column")
