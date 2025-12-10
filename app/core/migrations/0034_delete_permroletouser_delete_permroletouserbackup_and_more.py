@@ -7,10 +7,6 @@ def create_perm_tables_if_deleted(apps, schema_editor):
     all_tables = schema_editor.connection.introspection.table_names()
     if "perm_role_to_user" not in all_tables:
         schema_editor.execute("CREATE TABLE perm_role_to_user (temp_col int null);")
-    if "perm_role_to_user_backup" not in all_tables:
-        schema_editor.execute(
-            "CREATE TABLE perm_role_to_user_backup (temp_col int null);"
-        )
 
 
 class Migration(migrations.Migration):
@@ -23,9 +19,6 @@ class Migration(migrations.Migration):
         migrations.RunPython(create_perm_tables_if_deleted, migrations.RunPython.noop),
         migrations.DeleteModel(
             name="PermRoleToUser",
-        ),
-        migrations.DeleteModel(
-            name="PermRoleToUserBackup",
         ),
         migrations.DeleteModel(
             name="UserRole",

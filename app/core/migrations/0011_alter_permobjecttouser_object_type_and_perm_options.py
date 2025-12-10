@@ -12,11 +12,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterField(
             model_name="permobjecttouser",
-            name="expires_at",
-            field=models.DateTimeField(default=None, null=True),
-        ),
-        migrations.AlterField(
-            model_name="permobjecttouser",
             name="object_type",
             field=models.IntegerField(
                 choices=[

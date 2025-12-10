@@ -11,21 +11,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name="widgetinstance",
-            name="close_at",
-            field=models.DateTimeField(default=None, null=True),
-        ),
-        migrations.AlterField(
-            model_name="widgetinstance",
-            name="open_at",
-            field=models.DateTimeField(default=None, null=True),
-        ),
-        migrations.AlterField(
-            model_name="widgetinstance",
-            name="updated_at",
-            field=models.DateTimeField(default=None, null=True),
-        ),
-        migrations.AlterField(
             model_name="widgetqset",
             name="data",
             field=models.TextField(db_column="data"),

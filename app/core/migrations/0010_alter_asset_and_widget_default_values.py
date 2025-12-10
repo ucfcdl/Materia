@@ -12,11 +12,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterField(
             model_name="asset",
-            name="deleted_at",
-            field=models.DateTimeField(default=None, null=True),
-        ),
-        migrations.AlterField(
-            model_name="asset",
             name="file_size",
             field=models.IntegerField(default=0),
         ),

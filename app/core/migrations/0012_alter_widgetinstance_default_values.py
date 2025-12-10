@@ -20,11 +20,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name="widgetinstance",
-            name="close_at",
-            field=models.IntegerField(default=None, null=True),
-        ),
-        migrations.AlterField(
-            model_name="widgetinstance",
             name="embedded_only",
             field=models.BooleanField(default=False),
         ),
@@ -52,16 +47,6 @@ class Migration(migrations.Migration):
             model_name="widgetinstance",
             name="is_student_made",
             field=models.BooleanField(default=False),
-        ),
-        migrations.AlterField(
-            model_name="widgetinstance",
-            name="open_at",
-            field=models.IntegerField(default=None, null=True),
-        ),
-        migrations.AlterField(
-            model_name="widgetinstance",
-            name="updated_at",
-            field=models.IntegerField(default=None, null=True),
         ),
         migrations.AlterField(
             model_name="widgetinstance",

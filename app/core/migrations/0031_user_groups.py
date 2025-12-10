@@ -26,6 +26,7 @@ def create_user_groups(apps, schema_editor):
 
 def clean_perm_role_to_user(apps, schema_editor):
     # Skip this migration if PermRoleToUser doesn't exist (meaning we aren't migrating from PHP)
+    # TODO: can that even happen? 0001_initial creates this table when starting from scratch
     if "perm_role_to_user" not in schema_editor.connection.introspection.table_names():
         return
 
