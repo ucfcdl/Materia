@@ -56,14 +56,12 @@ def copy_users_to_django(apps, schema_editor):
             replace_user_ids("PermRoleToUser", fuel_user.id, original_user.id)
             replace_user_ids("Question", fuel_user.id, original_user.id)
             replace_user_ids("UserExtraAttempts", fuel_user.id, original_user.id)
-            replace_user_ids("UserMeta", fuel_user.id, original_user.id)
             replace_user_ids("WidgetInstance", fuel_user.id, original_user.id)
 
             # TODO:
             # ideally we would also be able to see if this record has been updated more
             #  recently than the one we originally used, but Django auth user models don't
             #  have a field to track update datetimes
-            # we could potentially use the UserMeta model for this if we cared to?
 
 
 def revert_django_users_to_empty(apps, schema_editor):

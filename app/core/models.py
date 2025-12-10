@@ -378,8 +378,7 @@ class Log(models.Model):
     item_id = models.CharField(max_length=255)
     text = models.TextField()
     value = models.CharField(max_length=255)
-    created_at = models.IntegerField()
-    created_at_dt = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=timezone.now)
     game_time = models.IntegerField()
     ip = models.CharField(max_length=20)
 
@@ -653,7 +652,7 @@ class Notification(models.Model):
     subject = models.CharField(max_length=511)
     # consider deleting this column & pulling the avatar from relevant user metadata just in time
     avatar = models.CharField(max_length=511)
-    updated_at = models.DateTimeField(default=timezone.now, null=True)
+    updated_at = models.DateTimeField(default=timezone.now)
     action = models.CharField(max_length=255)
 
     permissions = GenericRelation(ObjectPermission)
