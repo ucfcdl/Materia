@@ -168,7 +168,6 @@ class Command(base.BaseCommand):
         make_column_in_table_nullable_and_set_zero_to_null(
             "perm_object_to_user", "user_id"
         )
-        make_column_in_table_nullable_and_set_zero_to_null("question", "user_id")
         make_column_in_table_nullable_and_set_zero_to_null("widget_instance", "user_id")
 
         # some tables carried over from the PHP version did not have
@@ -198,7 +197,6 @@ class Command(base.BaseCommand):
             ("notification", "created_at", False),
             ("notification", "updated_at", False),
             ("perm_object_to_user", "expires_at", True),
-            ("question", "created_at", False),
             ("user_extra_attempts", "created_at", False),
             ("widget", "created_at", False),
             ("widget_instance", "created_at", False),
