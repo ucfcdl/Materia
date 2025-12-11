@@ -6,7 +6,6 @@ import django.db.models.deletion
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import migrations, models
-from django.utils import timezone
 
 
 class Migration(migrations.Migration):
@@ -227,7 +226,7 @@ class Migration(migrations.Migration):
         migrations.RunPython(clean_data, atomic=False),
         migrations.DeleteModel(
             name="Migration",
-        ),
+        ),  # TODO: remove this table as part of fake current db? never create model?
         migrations.RenameField(
             model_name="asset",
             old_name="type",
@@ -239,7 +238,7 @@ class Migration(migrations.Migration):
             field=models.ManyToManyField(
                 through="core.MapQuestionToQset", to="core.widgetqset"
             ),
-        ),
+        ),  # TODO: we abandon this model later. is this needed?
         migrations.AlterField(
             model_name="asset",
             name="is_deleted",

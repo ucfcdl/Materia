@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
         ("core", "0005_rename_user_id_logactivity_user_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
-
+    # TODO: optimization opportunities
     operations = [
         migrations.RemoveIndex(
             model_name="log",

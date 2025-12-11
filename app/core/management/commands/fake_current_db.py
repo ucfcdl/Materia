@@ -27,7 +27,6 @@ class Command(base.BaseCommand):
         self.stdout.write("Altering log_activity table to InnoDB engine")
         cursor = connection.cursor()
         cursor.execute("ALTER TABLE `log_activity` ENGINE = InnoDB;")
-        cursor.close()
 
         # remove tables unused by the Django implementation
         self.stdout.write("Dropping sessions table")
@@ -56,9 +55,6 @@ class Command(base.BaseCommand):
             "perm_object_to_user": [
                 "complex"
             ],  # TODO: there are 4 of these. see how it gets handled
-            "perm_role_to_perm": [
-                "complex"
-            ],  # TODO: there are 2 of these. see how it gets handled
             "perm_role_to_user": [
                 "user_id_role_id"
             ],  # TODO: there are 2 of these. see how it gets handled
@@ -182,7 +178,6 @@ class Command(base.BaseCommand):
         add_id_column_to_table("map_question_to_qset")
         add_id_column_to_table("perm_object_to_user")
         add_id_column_to_table("perm_role_to_user")
-        add_id_column_to_table("user_meta")
         add_id_column_to_table("widget_metadata")
 
         timestamp_fields = [
