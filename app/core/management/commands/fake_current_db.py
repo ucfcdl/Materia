@@ -56,7 +56,6 @@ class Command(base.BaseCommand):
             "map_asset_to_object": [
                 "object_id_object_type_asset_id"
             ],  # TODO: there are 3 of these. see how it gets handled
-            "map_question_to_qset": ["QSETID", "QID"],
             "notification": ["emailSent", "toID", "from_id", "item_type"],
             "perm_object_to_user": [
                 "complex"
@@ -64,7 +63,6 @@ class Command(base.BaseCommand):
             "perm_role_to_user": [
                 "user_id_role_id"
             ],  # TODO: there are 2 of these. see how it gets handled
-            "question": ["hash", "UID", "Q_type"],
             "user_extra_attempts": ["inst_id", "user_id"],
             "widget": ["clean_name", "is_in_catalog"],
             "widget_instance": ["GI_UID", "is_draft", "is_deleted"],
@@ -181,7 +179,6 @@ class Command(base.BaseCommand):
         #  manually in order for subsequent migrations to work
         add_id_column_to_table("log_storage")
         add_id_column_to_table("map_asset_to_object")
-        add_id_column_to_table("map_question_to_qset")
         add_id_column_to_table("perm_object_to_user")
         add_id_column_to_table("perm_role_to_user")
         add_id_column_to_table("widget_metadata")

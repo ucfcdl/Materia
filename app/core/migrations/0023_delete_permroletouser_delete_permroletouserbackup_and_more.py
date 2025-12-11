@@ -29,13 +29,4 @@ class Migration(migrations.Migration):
         migrations.DeleteModel(
             name="PermObjectToUser",
         ),
-        migrations.AlterModelTable(
-            name="MapQuestionToQset",
-            table="map_question_to_qset_old",
-        ),
-        migrations.AlterModelOptions(
-            name="MapQuestionToQset",
-            options={"managed": False},
-        ),
-        migrations.DeleteModel(name="MapQuestionToQset"),
     ]
