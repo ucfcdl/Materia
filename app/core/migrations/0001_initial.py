@@ -218,24 +218,6 @@ class Migration(migrations.Migration):
             options={"db_table": "map_question_to_qset"},
         ),
         migrations.CreateModel(
-            name="Migration",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("type", models.CharField(max_length=25)),
-                ("name", models.CharField(max_length=50)),
-                ("migration", models.CharField(max_length=100)),
-            ],
-            options={"db_table": "migration"},
-        ),
-        migrations.CreateModel(
             name="Notification",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),

@@ -223,9 +223,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(clean_data, atomic=False),
-        migrations.DeleteModel(
-            name="Migration",
-        ),  # TODO: remove this table as part of fake current db? never create model?
         migrations.RenameField(
             model_name="asset",
             old_name="type",

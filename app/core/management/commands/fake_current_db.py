@@ -29,6 +29,8 @@ class Command(base.BaseCommand):
         cursor.execute("ALTER TABLE `log_activity` ENGINE = InnoDB;")
 
         # remove tables unused by the Django implementation
+        self.stdout.write("Dropping migration table")
+        cursor.execute("DROP TABLE `migration`;")
         self.stdout.write("Dropping sessions table")
         cursor.execute("DROP TABLE `sessions`;")
         self.stdout.write("Dropping user_meta table")
