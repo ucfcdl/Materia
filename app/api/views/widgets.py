@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from core.message_exception import MsgFailure, MsgException
 from core.services.widget_installer_service import WidgetInstallerService
 
-logger = logging.getLogger("django")
+logger = logging.getLogger(__name__)
 
 
 class WidgetViewSet(viewsets.ModelViewSet):
@@ -23,6 +23,10 @@ class WidgetViewSet(viewsets.ModelViewSet):
     queryset = Widget.objects.all()
 
     def get_queryset(self):
+        if self.action != "list":
+            # return a default queryset for detail views
+            return Widget.objects.all()
+
         widget_ids_raw = self.request.query_params.get("ids", "")
         widget_type = self.request.query_params.get("type", "catalog")
 

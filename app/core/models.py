@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import types
 from pathlib import Path
 from typing import Self
@@ -34,10 +35,11 @@ from django.utils.text import slugify
 from django.utils.translation import gettext_lazy
 from lti_tool.models import LtiDeployment
 
-logger = logging.getLogger("django")
+logger = logging.getLogger(__name__)
 
 
 class ObjectPermission(models.Model):
+    PERMISSION_ADMIN = "admin"
     PERMISSION_VISIBLE = "visible"
     PERMISSION_FULL = "full"
     PERMISSION_CHOICES = [
@@ -55,9 +57,10 @@ class ObjectPermission(models.Model):
     permission = models.CharField(max_length=20, choices=PERMISSION_CHOICES)
     expires_at = models.DateTimeField(default=None, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    context_id = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
-        unique_together = ("user", "content_type", "object_id", "permission")
+        unique_together = ("user", "content_type", "object_id", "context_id")
         indexes = [
             models.Index(fields=["content_type", "object_id"]),
             models.Index(fields=["user", "permission"]),
@@ -936,7 +939,8 @@ class Widget(models.Model):
 
     @staticmethod
     def make_clean_name(name):
-        return name.replace(" ", "-").lower()
+        base = name.replace(" ", "-").lower()
+        return re.sub(r"[^a-z0-9-]", "", base)
 
     def get_playdata_exporter_methods(
         self, script_path: str = None
@@ -1035,6 +1039,10 @@ class WidgetInstance(models.Model):
 
     def attempts_left_for_user(self, user: User, context: str = ""):
         from core.services.semester_service import SemesterService
+
+        # short-circuit for guest users
+        if isinstance(user, AnonymousUser):
+            return -1
 
         semester = SemesterService.get_current_semester()
         attempts_used = LogPlay.objects.filter(
@@ -1219,36 +1227,38 @@ class WidgetInstance(models.Model):
 
         return dupe
 
-    def get_play_logs(self, semester=None, year=None, context_id=None):
+    def get_play_logs(self, semester=None, year=None, context_ids=None):
         """
         Returns a filtered queryset of play logs for the current instance
         Accepts semester, year, and context ID.
-        Note that context ID is semester-agnostic;
-        If it's not included, filtering can be performed with EITHER or BOTH
-        semester and year.
+        All filters are applied combinatorially - if multiple filters are provided,
+        they will all be applied together.
         """
-        queryset = self.play_logs.all()
+        queryset = self.play_logs.all().order_by("-created_at")
 
         # treat "all" as None
         semester = None if semester == "all" else semester
         year = None if year == "all" else year
 
-        if context_id:
-            return queryset.filter(context_id=context_id)
+        # Apply context_ids filter if provided
+        if context_ids:
+            context_id_list = [ctx.strip() for ctx in context_ids.split(",")]
+            queryset = queryset.filter(context_id__in=context_id_list)
 
+        # Apply semester and year filters if provided
         if semester and year:
             date = DateRange.objects.filter(semester=semester, year=year).first()
-            return queryset.filter(semester=date)
+            queryset = queryset.filter(semester=date)
 
-        if year and not semester:
+        elif year and not semester:
             semesters = DateRange.objects.filter(year=year)
-            return queryset.filter(semester__in=semesters)
+            queryset = queryset.filter(semester__in=semesters)
 
-        if semester and not year:
+        elif semester and not year:
             semesters = DateRange.objects.filter(
                 semester=semester, year=timezone.now().year
             )
-            return queryset.filter(semester__in=semesters)
+            queryset = queryset.filter(semester__in=semesters)
 
         return queryset
 
@@ -1305,8 +1315,6 @@ class WidgetQset(models.Model):
         This method will effectively be invoked once per qset at most,
         as subsequent requests for questions will be able to use the ORM
         """
-        decoded_data = Base64Util.decode(self.data)
-        raw_items = decoded_data.get("items", [])
 
         def find_questions(source):
             questions = []
@@ -1332,7 +1340,8 @@ class WidgetQset(models.Model):
 
             return questions
 
-        questions = find_questions(raw_items)
+        decoded_data = Base64Util.decode(self.data)
+        questions = find_questions(decoded_data)
         questions_set = []
         for question in questions:
             new_question = Question(
@@ -1366,22 +1375,25 @@ class WidgetQset(models.Model):
         import copy
         import uuid
 
-        def _process_item(item):
+        def _assign_item_id_if_empty(item):
+            if "id" in item and (
+                item["id"] is None or item["id"] == 0 or item["id"] == ""
+            ):
+                item["id"] = str(uuid.uuid4())
+
+        def _process_item(item, parent_key=None):
             if isinstance(item, list):
-                return [_process_item(element) for element in item]
+                return [_process_item(element, parent_key) for element in item]
 
             if isinstance(item, dict):
                 result = copy.deepcopy(item)
 
-                if Question.is_question(result):
-                    if "id" in result and (
-                        result["id"] is None or result["id"] == 0 or result["id"] == ""
-                    ):
-                        result["id"] = str(uuid.uuid4())
+                if Question.is_question(result) or parent_key == "answers":
+                    _assign_item_id_if_empty(result)
 
                 for key, value in result.items():
                     if isinstance(value, (dict, list)):
-                        result[key] = _process_item(value)
+                        result[key] = _process_item(value, key)
 
                 return result
 

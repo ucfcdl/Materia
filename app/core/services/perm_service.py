@@ -8,10 +8,10 @@ from django.db import models
 from django.db.models import QuerySet
 from django.utils import timezone
 
-logger = logging.getLogger("django")
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from core.models import WidgetInstance, ObjectPermission
+    from core.models import ObjectPermission, WidgetInstance
 
 
 class PermService:
@@ -42,9 +42,9 @@ class PermService:
         return user.groups.filter(name__in=roles).exists()
 
     @staticmethod
-    def get_all_objects_of_type_for_user[
-        T: Type[models.Model]
-    ](obj: T, user: User | int, perms: list[str]) -> QuerySet[T]:
+    def get_all_objects_of_type_for_user[T: Type[models.Model]](
+        obj: T, user: User | int, perms: list[str]
+    ) -> QuerySet[T]:
         if len(perms) <= 0:
             return obj.objects.none()
 
@@ -109,6 +109,7 @@ class PermService:
         from core.models import ObjectPermission
 
         permission_value_map = {
+            ObjectPermission.PERMISSION_ADMIN: 100,
             ObjectPermission.PERMISSION_FULL: 50,
             ObjectPermission.PERMISSION_VISIBLE: 0,
         }
