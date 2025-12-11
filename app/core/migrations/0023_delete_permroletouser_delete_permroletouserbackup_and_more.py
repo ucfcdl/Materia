@@ -12,7 +12,7 @@ def create_perm_tables_if_deleted(apps, schema_editor):
 class Migration(migrations.Migration):
     atomic = False
     dependencies = [
-        ("core", "0033_fix_logstorage_data"),
+        ("core", "0022_fix_logstorage_data"),
     ]
 
     operations = [

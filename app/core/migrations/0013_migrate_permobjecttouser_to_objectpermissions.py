@@ -74,7 +74,7 @@ def reverse_migration(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0019_alter_permobjecttouser_user_objectpermission"),
+        ("core", "0012_alter_permobjecttouser_user_objectpermission"),
     ]
 
     operations = [

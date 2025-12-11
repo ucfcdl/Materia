@@ -5,7 +5,7 @@ from django.utils import timezone
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0021_rename_type_assetdata_file_type"),
+        ("core", "0014_rename_type_assetdata_file_type"),
     ]
 
     operations = [

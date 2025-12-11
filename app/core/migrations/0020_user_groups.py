@@ -83,7 +83,7 @@ def convert_user_groups(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0030_backfill_user_settings"),
+        ("core", "0019_backfill_user_settings"),
     ]
 
     operations = [

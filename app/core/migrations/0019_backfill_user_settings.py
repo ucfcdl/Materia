@@ -55,7 +55,7 @@ def backfill_user_settings(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0028_remove_userextraattempts_user_extra_attempts_user_id_and_more"),
+        ("core", "0018_remove_userextraattempts_user_extra_attempts_user_id_and_more"),
     ]
 
     operations = [
