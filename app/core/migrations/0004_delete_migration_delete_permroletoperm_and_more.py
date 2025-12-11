@@ -46,7 +46,8 @@ class Migration(migrations.Migration):
             published_by__in=all_user_ids
         ).exclude(published_by=None)
         logger.info(
-            f"deleting {invalid_widget_instance_rows.count()} invalid WidgetInstance rows without matching published_by User"
+            f"deleting {invalid_widget_instance_rows.count()} invalid WidgetInstance rows "
+            "without matching published_by User"
         )
         invalid_widget_instance_rows.delete()
 
