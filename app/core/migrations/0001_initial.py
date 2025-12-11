@@ -199,23 +199,6 @@ class Migration(migrations.Migration):
             options={"db_table": "map_asset_to_object"},
         ),
         migrations.CreateModel(
-            name="MapQuestionToQset",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("qset_id", models.PositiveBigIntegerField()),
-                ("question_id", models.PositiveBigIntegerField()),
-            ],
-            options={"db_table": "map_question_to_qset"},
-        ),
-        migrations.CreateModel(
             name="Notification",
             fields=[
                 ("id", models.BigAutoField(primary_key=True, serialize=False)),
@@ -268,19 +251,6 @@ class Migration(migrations.Migration):
                 ("role_id", models.PositiveBigIntegerField()),
             ],
             options={"db_table": "perm_role_to_user"},
-        ),
-        migrations.CreateModel(
-            name="Question",
-            fields=[
-                ("id", models.BigAutoField(primary_key=True, serialize=False)),
-                ("user_id", models.PositiveBigIntegerField(null=True)),
-                ("type", models.CharField(max_length=255)),
-                ("text", models.TextField()),
-                ("created_at", models.DateTimeField(default=timezone.now)),
-                ("data", models.TextField(blank=True, null=True)),
-                ("hash", models.CharField(max_length=32, unique=True)),
-            ],
-            options={"db_table": "question"},
         ),
         migrations.CreateModel(
             name="UserExtraAttempts",

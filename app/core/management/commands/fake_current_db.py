@@ -29,6 +29,8 @@ class Command(base.BaseCommand):
         cursor.execute("ALTER TABLE `log_activity` ENGINE = InnoDB;")
 
         # remove tables unused by the Django implementation
+        self.stdout.write("Dropping map_question_to_qset table")
+        cursor.execute("DROP TABLE `map_question_to_qset`;")
         self.stdout.write("Dropping migration table")
         cursor.execute("DROP TABLE `migration`;")
         self.stdout.write("Dropping sessions table")
@@ -37,6 +39,8 @@ class Command(base.BaseCommand):
         cursor.execute("DROP TABLE `user_meta`;")
         self.stdout.write("Dropping perm_role_to_perm table")
         cursor.execute("DROP TABLE `perm_role_to_perm`;")
+        self.stdout.write("Dropping question table")
+        cursor.execute("DROP TABLE `question`;")
 
         # drop log indexes that will be recreated properly by Django migrations
         self.stdout.write("Removing indexes that will be recreated by migrations")

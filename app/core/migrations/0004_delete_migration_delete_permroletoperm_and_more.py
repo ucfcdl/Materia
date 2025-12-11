@@ -30,9 +30,7 @@ class Migration(migrations.Migration):
         OldLogPlay = apps.get_model("core", "LogPlay")
         OldLogStorage = apps.get_model("core", "LogStorage")
         OldLti = apps.get_model("core", "Lti")
-        OldMapQuestionToQset = apps.get_model("core", "MapQuestionToQset")
         OldPermObjectToUser = apps.get_model("core", "PermObjectToUser")
-        OldQuestion = apps.get_model("core", "Question")
         OldWidget = apps.get_model("core", "Widget")
         OldWidgetInstance = apps.get_model("core", "WidgetInstance")
         OldWidgetMetadata = apps.get_model("core", "WidgetMetadata")
@@ -42,18 +40,6 @@ class Migration(migrations.Migration):
         all_semester_ids = OldDateRange.objects.values_list("id", flat=True)
         all_user_ids = User.objects.values_list("id", flat=True)
         all_widget_ids = OldWidget.objects.values_list("id", flat=True)
-
-        # Question -> User via user_id
-        invalid_question_rows = OldQuestion.objects.exclude(
-            user_id__in=all_user_ids
-        ).exclude(user_id=None)
-        logger.info(
-            f"deleting {invalid_question_rows.count()} Question rows without matching User"
-        )
-        invalid_question_rows.delete()
-
-        # all Question rows should be valid by now
-        all_question_ids = OldQuestion.objects.values_list("id", flat=True)
 
         # WidgetInstance -> User via published_by
         invalid_widget_instance_rows = OldWidgetInstance.objects.exclude(
@@ -184,24 +170,6 @@ class Migration(migrations.Migration):
         )
         invalid_logstorage_rows.delete()
 
-        # MapQuestionToQset -> WidgetQset via qset_id
-        invalid_mapquestiontoqset_rows = OldMapQuestionToQset.objects.exclude(
-            qset_id__in=all_qset_ids
-        )
-        logger.info(
-            f"deleting {invalid_mapquestiontoqset_rows.count()} MapQuestionToQset rows without matching WidgetQset"
-        )
-        invalid_mapquestiontoqset_rows.delete()
-
-        # MapQuestionToQset -> Question via question_id
-        invalid_mapquestiontoqset_rows = OldMapQuestionToQset.objects.exclude(
-            question_id__in=all_question_ids
-        )
-        logger.info(
-            f"deleting {invalid_mapquestiontoqset_rows.count()} MapQuestionToQset rows without matching Question"
-        )
-        invalid_mapquestiontoqset_rows.delete()
-
         # PermObjectToUser -> User via user_id
         invalid_permobjectotouser_rows = OldPermObjectToUser.objects.exclude(
             user_id__in=all_user_ids
@@ -228,13 +196,6 @@ class Migration(migrations.Migration):
             new_name="file_type",
         ),
         migrations.RenameField(model_name="log", old_name="type", new_name="log_type"),
-        migrations.AddField(
-            model_name="question",
-            name="qset",
-            field=models.ManyToManyField(
-                through="core.MapQuestionToQset", to="core.widgetqset"
-            ),
-        ),  # TODO: we abandon this model later. is this needed?
         migrations.AlterField(
             model_name="asset",
             name="is_deleted",
@@ -384,23 +345,6 @@ class Migration(migrations.Migration):
                 null=True,
             ),
         ),
-        migrations.RunSQL(
-            "ALTER TABLE `map_question_to_qset` MODIFY `qset_id` bigint SIGNED NOT NULL;",
-            "ALTER TABLE `map_question_to_qset` MODIFY `qset_id` bigint UNSIGNED NOT NULL;",
-        ),
-        migrations.RunSQL(
-            "ALTER TABLE `map_question_to_qset` MODIFY `question_id` bigint SIGNED NOT NULL;",
-            "ALTER TABLE `map_question_to_qset` MODIFY `question_id` bigint UNSIGNED NOT NULL;",
-        ),
-        migrations.RunSQL(
-            "ALTER TABLE `question` MODIFY `id` bigint SIGNED AUTO_INCREMENT NOT NULL;",
-            "ALTER TABLE `question` MODIFY `id` bigint UNSIGNED AUTO_INCREMENT NOT NULL;",
-        ),
-        migrations.AlterField(
-            model_name="mapquestiontoqset",
-            name="id",
-            field=models.BigAutoField(primary_key=True, serialize=False),
-        ),
         migrations.AlterField(
             model_name="notification",
             name="is_email_sent",
@@ -434,18 +378,6 @@ class Migration(migrations.Migration):
                 db_column="user_id",
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="object_permissions",
-                to=settings.AUTH_USER_MODEL,
-                blank=True,
-                null=True,
-            ),
-        ),
-        migrations.AlterField(
-            model_name="question",
-            name="user_id",
-            field=models.ForeignKey(
-                db_column="user_id",
-                on_delete=django.db.models.deletion.PROTECT,
-                related_name="questions",
                 to=settings.AUTH_USER_MODEL,
                 blank=True,
                 null=True,
@@ -685,14 +617,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="notification",
             index=models.Index(fields=["item_type"], name="notification_item_type"),
-        ),
-        migrations.AddIndex(
-            model_name="question",
-            index=models.Index(fields=["hash"], name="question_hash"),
-        ),
-        migrations.AddIndex(
-            model_name="question",
-            index=models.Index(fields=["type"], name="question_type"),
         ),
         migrations.AddIndex(
             model_name="userextraattempts",

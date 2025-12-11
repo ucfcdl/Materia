@@ -54,7 +54,6 @@ def copy_users_to_django(apps, schema_editor):
             replace_user_ids("Lti", fuel_user.id, original_user.id)
             replace_user_ids("PermObjectToUser", fuel_user.id, original_user.id)
             replace_user_ids("PermRoleToUser", fuel_user.id, original_user.id)
-            replace_user_ids("Question", fuel_user.id, original_user.id)
             replace_user_ids("UserExtraAttempts", fuel_user.id, original_user.id)
             replace_user_ids("WidgetInstance", fuel_user.id, original_user.id)
 

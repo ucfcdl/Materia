@@ -59,11 +59,6 @@ class Migration(migrations.Migration):
             new_name="user",
         ),
         migrations.RenameField(
-            model_name="question",
-            old_name="user_id",
-            new_name="user",
-        ),
-        migrations.RenameField(
             model_name="widgetinstance",
             old_name="user_id",
             new_name="user",

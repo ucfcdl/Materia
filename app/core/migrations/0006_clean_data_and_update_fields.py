@@ -171,15 +171,6 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="question",
-            name="qset",
-            field=models.ManyToManyField(
-                related_name="questions",
-                through="core.MapQuestionToQset",
-                to="core.widgetqset",
-            ),
-        ),
-        migrations.AlterField(
             model_name="widgetmetadata",
             name="id",
             field=models.BigAutoField(primary_key=True, serialize=False),
