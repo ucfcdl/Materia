@@ -3,12 +3,12 @@ import os
 # CSS group definition configs
 
 CSS_BASEURL = os.environ.get("CSS_BASEURL", "dist/css/")
-FONTS_BASEURL = "https://fonts.googleapis.com/"
+FONTS_BASEURL = "https://fonts.bunny.net/"
 
 FONTS_DEFAULT = [
-    FONTS_BASEURL + "css2?family=Kameron:wght@700&display=block",
+    FONTS_BASEURL + "css?family=kameron:700",
     FONTS_BASEURL
-    + "css2?family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,700&display=block",
+    + "css?family=lato:300,300i,400,400i,700,700i,900,900i",
 ]
 
 CSS_GROUPS = {
