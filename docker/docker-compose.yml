@@ -49,6 +49,60 @@ services:
       - ../public/widget:/var/www/html/staticfiles/widget/:rw
     command: /wait_for_it.sh mysql:3306 -t 15 -- gunicorn materia.wsgi:application --bind 0.0.0.0:8001 --reload --workers 4 --threads 2 --timeout 150 --log-level info --access-logfile - --error-logfile -
 
+  celery_beat:
+    build:
+      context: ../
+      dockerfile: materia-app.python.Dockerfile
+    environment:
+      - DJANGO_ENV=dev
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=materia_dev
+      - MYSQL_USER=materia_user
+      - MYSQL_PASSWORD=kogneato
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+    env_file:
+      - .env
+    command: >
+      /wait_for_it.sh mysql:3306 -t 15 --
+      celery -A materia.celery beat
+      --loglevel=info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ../app:/var/www/html
+      - uploaded_media:/var/www/html/media/
+      - ../public/widget:/var/www/html/staticfiles/widget/:rw
+    depends_on:
+      - redis
+      - mysql 
+    networks:
+      - backend
+
+  celery:
+    build:
+      context: ../
+      dockerfile: materia-app.python.Dockerfile
+    environment:
+      - DJANGO_ENV=dev
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=materia_dev
+      - MYSQL_USER=materia_user
+      - MYSQL_PASSWORD=kogneato
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+    env_file: 
+     - .env
+    command: ["celery", "-A", "materia.celery", "worker", "-Q", "celery_queue", "-n", "celery@%h", "--loglevel=info", "--concurrency=1"]
+    volumes:
+      - ../app:/var/www/html
+      - uploaded_media:/var/www/html/media/
+      - ../public/widget:/var/www/html/staticfiles/widget/:rw
+    depends_on:
+      - redis
+    networks:
+      - backend
+
+
   mysql:
     image: mysql:8.0.39
     platform: linux/amd64
