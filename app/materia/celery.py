@@ -1,5 +1,6 @@
 # celery.py
 import os
+from datetime import timedelta
 
 from celery import Celery
 
@@ -7,7 +8,7 @@ from django.conf import settings
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "materia.settings.base")
 
-app = Celery("core.tasks")
+app = Celery("materia")
 
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.conf.timezone = settings.TIME_ZONE
@@ -18,4 +19,14 @@ app.conf.task_queues = {
         "routing_key": "celery_queue",
     }
 }
+
+app.conf.beat_schedule = {
+    "run_add": {
+        "task": "core.tasks.tasks.add",
+        "schedule": timedelta(seconds=2),
+        "priority": 4,
+        "args": (3, 7)
+    }
+}
+
 app.autodiscover_tasks()

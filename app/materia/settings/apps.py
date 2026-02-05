@@ -12,6 +12,7 @@ INSTALLED_APPS = [
     "rest_framework",
     # apps
     "core",
+    "core.tasks",
     "corsheaders",
     "lti_tool",
     "lti",
