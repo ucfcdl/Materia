@@ -1,6 +1,5 @@
 # celery.py
 import os
-from datetime import timedelta
 
 from celery import Celery
 
@@ -17,15 +16,6 @@ app.conf.task_queues = {
     "celery_queue": {
         "exchange": "celery_queue",
         "routing_key": "celery_queue",
-    }
-}
-
-app.conf.beat_schedule = {
-    "run_add": {
-        "task": "core.tasks.tasks.add",
-        "schedule": timedelta(seconds=2),
-        "priority": 4,
-        "args": (3, 7)
     }
 }
 
