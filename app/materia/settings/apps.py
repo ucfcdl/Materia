@@ -14,4 +14,5 @@ INSTALLED_APPS = [
     "corsheaders",
     "lti_tool",
     "lti",
+    "channels",
 ]
