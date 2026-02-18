@@ -2,7 +2,9 @@ import random
 import string
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
-from api.consumers.kahoot_state import ROOMS, DIRECTORY_GROUP, rooms_summary
+from django.core.cache import cache
+
+from api.consumers.kahoot_state import DIRECTORY_GROUP, rooms_summary, save_room, _room_key, _get_room_codes, _save_room_codes, ROOM_TTL
 from api.consumers.kahoot_broadcast import broadcast_directory
 
 
@@ -40,11 +42,15 @@ class KahootDirectoryConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"event": "error", "payload": {"message": "lobby name required"}})
             return
 
+        existing_codes = _get_room_codes()
         code = gen_code(4)
-        while code in ROOMS:
+        while code in existing_codes:
             code = gen_code(4)
 
-        ROOMS[code] = {"name": name, "players": [], "started": False}
+        room = {"name": name, "players": [], "started": False}
+        save_room(code, room)
+        existing_codes.add(code)
+        _save_room_codes(existing_codes)
 
         await self.send_json({"event": "room_created", "payload": {"code": code}})
         await broadcast_directory(self.channel_layer)

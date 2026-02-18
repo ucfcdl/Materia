@@ -1,7 +1,7 @@
 import uuid
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
-from api.consumers.kahoot_state import get_or_create_room, delete_room_if_empty
+from api.consumers.kahoot_state import get_or_create_room, save_room, delete_room_if_empty
 from api.consumers.kahoot_broadcast import broadcast_directory
 
 class KahootConsumer(AsyncJsonWebsocketConsumer):
@@ -35,6 +35,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
             if p.get("id") != self.player_id:
                 remaining.append(p)
         room["players"] = remaining
+        save_room(self.room_code, room)
 
         # if lobby is empty, delete it and refresh directory
         if delete_room_if_empty(self.room_code):
@@ -88,6 +89,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
 
         self.player_name = name
         room["players"].append({"id": self.player_id, "name": name})
+        save_room(self.room_code, room)
 
         await self.channel_layer.group_send(
             self.group_name,
@@ -98,6 +100,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
     async def handle_start(self):
         room = get_or_create_room(self.room_code)
         room["started"] = True
+        save_room(self.room_code, room)
 
         await self.channel_layer.group_send(
             self.group_name,
