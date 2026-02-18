@@ -14,11 +14,20 @@ class Player(TypedDict):
     id: str
     name: str
 
+class GameState(TypedDict):
+    questionIndex: int
+    #ts a unix timestamp
+    questionStartedAt: float
+    durationMs: int
+    paused: bool
+    pausedAt: float | None
 
 class Room(TypedDict):
     name: str
     players: List[Player]
     started: bool
+    game: GameState | None
+    hostId: str | None
 
 
 def _room_key(code: str) -> str:
@@ -37,7 +46,14 @@ def get_or_create_room(code: str) -> Room:
     key = _room_key(code)
     room = cache.get(key)
     if room is None:
-        room = {"name": code, "players": [], "started": False}
+        room = {
+            "name": code,
+            "players": [],
+            "started": False,
+            "game": None,
+            "hostId": None
+
+        }
         cache.set(key, room, ROOM_TTL)
         codes = _get_room_codes()
         codes.add(code)
