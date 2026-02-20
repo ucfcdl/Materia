@@ -42,7 +42,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
         self.player_name = None
 
         self._timer_task = None
-        
+
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
@@ -80,7 +80,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
         await self.broadcast_room(room, event="lobby_update")
 
         await broadcast_directory(self.channel_layer)
-    
+
     async def _score_and_send_leaderboard(self, room):
         game = room.get("game", {})
         correct_ids = set(game.get("correctIds", []))
@@ -116,10 +116,10 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
         room["game"] = game
         save_room(self.room_code, room)
 
-        await self.channel_layer.group_send(                                                                                                                                                                
+        await self.channel_layer.group_send(
             self.group_name,
-            {"type": "group_event", "event": "leaderboard", "payload": {                                                                                                                                    
-                "leaderboard": entries,                                                                                                                                                                   
+            {"type": "group_event", "event": "leaderboard", "payload": {
+                "leaderboard": entries,
                 "correctIds": game.get("correctIds", []),
             }},
         )
@@ -131,44 +131,44 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
         if event == "join":
             await self.handle_join(payload)
             return
-            
+
         if event == "start":
             await self.handle_start()
             return
-            
+
         if event == "leave":
             await self.close()
             return
-        
+
         if event == "submit_answer":
             await self.handle_submit_answer(payload)
             return
-        
+
         if event == "admin_send_question":
             await self.handle_admin_send_question(payload)
             return
-        
+
         if event == "admin_next_question":
             await self.handle_admin_next_question()
             return
-            
+
         if event == "admin_pause":
             await self.handle_admin_pause()
             return
-            
+
         if event == "admin_resume":
             await self.handle_admin_resume()
             return
-            
+
         if event == "admin_end_game":
             await self.handle_admin_end_game()
             return
-        
-        
+
+
         await self.send_json({"event": "error", "payload": {"message": f"unknown event: {event}"}})
-   
-    async def handle_submit_answer(self, payload):                                                                                                                                                      
-        room = get_or_create_room(self.room_code)                                                                                                                                                     
+
+    async def handle_submit_answer(self, payload):
+        room = get_or_create_room(self.room_code)
         game = room.get("game")
         if not game:
             return
@@ -193,13 +193,13 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
             if self._timer_task and not self._timer_task.done():
                 self._timer_task.cancel()
             await self._score_and_send_leaderboard(room)
-    
+
     async def handle_admin_send_question(self, payload):
         # cancel any existing timer
         if self._timer_task and not self._timer_task.done():
             self._timer_task.cancel()
-        
-        room = get_or_create_room(self.room_code)                                                                                                                                                     
+
+        room = get_or_create_room(self.room_code)
         if not await self._require_host(room):
             return
 
@@ -210,6 +210,8 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
         game = room.get("game", {})
         game["correctIds"] = correct_ids
         game["answers"] = {}
+        game["questionStartedAt"] = self.now_s()
+        game["durationMs"] = question.get("timeLimitMs") or 30000
         room["game"] = game
         save_room(self.room_code, room)
 
@@ -222,7 +224,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
         # start timer
         duration_s = (question.get("timeLimitMs") or 30000) // 1000
         self._timer_task = asyncio.create_task(self._run_timer(duration_s))
-    
+
     async def _run_timer(self, duration_s):
         try:
             for remaining in range(duration_s, 0, -1):
@@ -240,7 +242,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
             )
             room = get_or_create_room(self.room_code)
             await self._score_and_send_leaderboard(room)
-            
+
         except asyncio.CancelledError:
             pass
 
@@ -300,7 +302,7 @@ class KahootConsumer(AsyncJsonWebsocketConsumer):
                     "payload": room["game"]
                 }
             )
-            
+
         await broadcast_directory(self.channel_layer)
 
     async def handle_start(self):
